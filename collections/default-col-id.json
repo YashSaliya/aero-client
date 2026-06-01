@@ -1,0 +1,38 @@
+{
+  "id": "default-col-id",
+  "name": "Aero Sample Collection",
+  "requests": [
+    {
+      "id": "req-1",
+      "name": "Get JSONPlaceholder Users",
+      "method": "GET",
+      "url": "https://jsonplaceholder.typicode.com/users",
+      "headers": [
+        {
+          "key": "Accept",
+          "value": "application/json",
+          "active": true
+        }
+      ],
+      "body": "",
+      "graphql_query": null,
+      "graphql_variables": null
+    },
+    {
+      "id": "req-2",
+      "name": "Post Create User",
+      "method": "POST",
+      "url": "https://jsonplaceholder.typicode.com/posts",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "active": true
+        }
+      ],
+      "body": "{\"title\": \"foo\", \"body\": \"bar\", \"userId\": 1}",
+      "graphql_query": null,
+      "graphql_variables": null
+    }
+  ]
+}
