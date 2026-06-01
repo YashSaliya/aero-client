@@ -16,10 +16,24 @@ pub struct SavedRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "content")]
+pub enum CollectionItem {
+    Request(SavedRequest),
+    Folder(FolderNode),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FolderNode {
+    pub id: String,
+    pub name: String,
+    pub items: Vec<CollectionItem>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ApiCollection {
     pub id: String,
     pub name: String,
-    pub requests: Vec<SavedRequest>,
+    pub items: Vec<CollectionItem>,
 }
 
 pub struct CollectionStorage {
@@ -28,7 +42,6 @@ pub struct CollectionStorage {
 
 impl CollectionStorage {
     pub fn new() -> Self {
-        // We will store collections in a directory "collections" under the current working directory
         let dir_path = PathBuf::from("collections");
         if !dir_path.exists() {
             let _ = fs::create_dir_all(&dir_path);
@@ -53,40 +66,49 @@ impl CollectionStorage {
 
         // Return a default collection if empty so the user always has a starting place
         if collections.is_empty() {
+            let sample_request = SavedRequest {
+                id: "req-1".to_string(),
+                name: "Get JSONPlaceholder Users".to_string(),
+                method: "GET".to_string(),
+                url: "https://jsonplaceholder.typicode.com/users".to_string(),
+                headers: vec![KeyValue {
+                    key: "Accept".to_string(),
+                    value: "application/json".to_string(),
+                    active: true,
+                }],
+                body: "".to_string(),
+                graphql_query: None,
+                graphql_variables: None,
+            };
+
+            let nested_folder = FolderNode {
+                id: "subfolder-1".to_string(),
+                name: "Advanced Examples".to_string(),
+                items: vec![CollectionItem::Request(SavedRequest {
+                    id: "req-2".to_string(),
+                    name: "Post Create User".to_string(),
+                    method: "POST".to_string(),
+                    url: "https://jsonplaceholder.typicode.com/posts".to_string(),
+                    headers: vec![KeyValue {
+                        key: "Content-Type".to_string(),
+                        value: "application/json".to_string(),
+                        active: true,
+                    }],
+                    body: r#"{"title": "foo", "body": "bar", "userId": 1}"#.to_string(),
+                    graphql_query: None,
+                    graphql_variables: None,
+                })],
+            };
+
             let default_col = ApiCollection {
                 id: "default-col-id".to_string(),
                 name: "Aero Sample Collection".to_string(),
-                requests: vec![
-                    SavedRequest {
-                        id: "req-1".to_string(),
-                        name: "Get JSONPlaceholder Users".to_string(),
-                        method: "GET".to_string(),
-                        url: "https://jsonplaceholder.typicode.com/users".to_string(),
-                        headers: vec![KeyValue {
-                            key: "Accept".to_string(),
-                            value: "application/json".to_string(),
-                            active: true,
-                        }],
-                        body: "".to_string(),
-                        graphql_query: None,
-                        graphql_variables: None,
-                    },
-                    SavedRequest {
-                        id: "req-2".to_string(),
-                        name: "Post Create User".to_string(),
-                        method: "POST".to_string(),
-                        url: "https://jsonplaceholder.typicode.com/posts".to_string(),
-                        headers: vec![KeyValue {
-                            key: "Content-Type".to_string(),
-                            value: "application/json".to_string(),
-                            active: true,
-                        }],
-                        body: r#"{"title": "foo", "body": "bar", "userId": 1}"#.to_string(),
-                        graphql_query: None,
-                        graphql_variables: None,
-                    },
+                items: vec![
+                    CollectionItem::Request(sample_request),
+                    CollectionItem::Folder(nested_folder),
                 ],
             };
+            
             let _ = self.save_collection(&default_col);
             collections.push(default_col);
         }

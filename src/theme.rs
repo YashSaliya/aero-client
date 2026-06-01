@@ -67,6 +67,73 @@ pub fn draw_custom_button(
     ui.add(button)
 }
 
+pub fn paint_linear_gradient(
+    ui: &mut egui::Ui,
+    rect: egui::Rect,
+    left_color: egui::Color32,
+    right_color: egui::Color32,
+) {
+    let mut mesh = egui::Mesh::default();
+    mesh.vertices.push(egui::epaint::Vertex {
+        pos: rect.left_top(),
+        uv: egui::epaint::WHITE_UV,
+        color: left_color,
+    });
+    mesh.vertices.push(egui::epaint::Vertex {
+        pos: rect.left_bottom(),
+        uv: egui::epaint::WHITE_UV,
+        color: left_color,
+    });
+    mesh.vertices.push(egui::epaint::Vertex {
+        pos: rect.right_bottom(),
+        uv: egui::epaint::WHITE_UV,
+        color: right_color,
+    });
+    mesh.vertices.push(egui::epaint::Vertex {
+        pos: rect.right_top(),
+        uv: egui::epaint::WHITE_UV,
+        color: right_color,
+    });
+    mesh.indices.push(0);
+    mesh.indices.push(1);
+    mesh.indices.push(2);
+    mesh.indices.push(0);
+    mesh.indices.push(2);
+    mesh.indices.push(3);
+    ui.painter().add(egui::Shape::mesh(mesh));
+}
+
+pub fn draw_gradient_button(
+    ui: &mut egui::Ui,
+    label: &str,
+    left_color: egui::Color32,
+    right_color: egui::Color32,
+) -> egui::Response {
+    let desired_size = egui::vec2(90.0, 30.0);
+    let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
+    
+    if ui.is_rect_visible(rect) {
+        paint_linear_gradient(ui, rect, left_color, right_color);
+        
+        let stroke_color = if response.hovered() {
+            egui::Color32::WHITE
+        } else {
+            left_color.linear_multiply(0.8)
+        };
+        ui.painter().rect_stroke(rect, egui::Rounding::same(6.0), egui::Stroke::new(1.0, stroke_color));
+        
+        ui.painter().text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            label,
+            egui::FontId::new(13.0, egui::FontFamily::Proportional),
+            egui::Color32::WHITE,
+        );
+    }
+    
+    response
+}
+
 pub fn apply_theme(ctx: &egui::Context) {
     let mut style = (*ctx.style()).clone();
 
