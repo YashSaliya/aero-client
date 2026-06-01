@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>API Client - Request Builder</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&amp;family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2d3449;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #494454;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                "primary-fixed-dim": "#d0bcff",
+                "surface": "#0b1326",
+                "on-primary-fixed": "#23005c",
+                "on-error-container": "#ffdad6",
+                "on-primary-fixed-variant": "#5516be",
+                "on-tertiary-fixed-variant": "#653e00",
+                "on-secondary": "#003824",
+                "inverse-on-surface": "#283044",
+                "secondary-container": "#00a572",
+                "inverse-surface": "#dae2fd",
+                "surface-container-highest": "#2d3449",
+                "on-background": "#dae2fd",
+                "on-surface-variant": "#cbc3d7",
+                "surface-container-high": "#222a3d",
+                "surface-bright": "#31394d",
+                "on-secondary-fixed-variant": "#005236",
+                "inverse-primary": "#6d3bd7",
+                "on-secondary-container": "#00311f",
+                "tertiary-fixed-dim": "#ffb95f",
+                "secondary-fixed": "#6ffbbe",
+                "primary-container": "#a078ff",
+                "on-primary": "#3c0091",
+                "surface-tint": "#d0bcff",
+                "primary": "#d0bcff",
+                "background": "#0b1326",
+                "on-primary-container": "#340080",
+                "on-tertiary-container": "#3e2400",
+                "error": "#ffb4ab",
+                "surface-container-lowest": "#060e20",
+                "primary-fixed": "#e9ddff",
+                "surface-variant": "#2d3449",
+                "on-surface": "#dae2fd",
+                "outline": "#958ea0",
+                "on-error": "#690005",
+                "on-tertiary": "#472a00",
+                "error-container": "#93000a",
+                "surface-container-low": "#131b2e",
+                "surface-container": "#171f33",
+                "tertiary": "#ffb95f",
+                "outline-variant": "#494454",
+                "secondary-fixed-dim": "#4edea3",
+                "on-tertiary-fixed": "#2a1700",
+                "tertiary-container": "#ca8100",
+                "surface-dim": "#0b1326",
+                "secondary": "#4edea3",
+                "tertiary-fixed": "#ffddb8",
+                "on-secondary-fixed": "#002113"
+              },
+              "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+              },
+              "spacing": {
+                "stack-lg": "24px",
+                "unit": "4px",
+                "gutter": "12px",
+                "stack-sm": "8px",
+                "container-padding": "16px",
+                "stack-md": "16px"
+              },
+              "fontFamily": {
+                "headline-lg": ["Geist"],
+                "body-sm": ["Hanken Grotesk"],
+                "status-badge": ["JetBrains Mono"],
+                "label-caps": ["JetBrains Mono"],
+                "code-block": ["JetBrains Mono"],
+                "body-lg": ["Hanken Grotesk"],
+                "headline-md": ["Geist"]
+              },
+              "fontSize": {
+                "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                "status-badge": ["12px", {"lineHeight": "14px", "fontWeight": "600"}],
+                "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                "code-block": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+                "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface overflow-hidden h-screen flex flex-col font-body-lg">
+<!-- Top Navigation Anchor -->
+<header class="bg-background text-primary font-headline-md text-headline-md fixed top-0 w-full z-50 border-b border-outline-variant/30 flex justify-between items-center px-container-padding h-14">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined transition-all duration-200 active:opacity-70 cursor-pointer">menu</span>
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-primary tracking-tight">API Client</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden md:flex gap-4 items-center">
+<button class="flex items-center justify-center bg-primary-container/20 text-primary rounded-xl px-3 py-1 font-label-caps text-label-caps transition-colors">Builder</button>
+<button class="flex items-center justify-center text-on-surface-variant font-label-caps text-label-caps hover:text-primary transition-colors">History</button>
+<button class="flex items-center justify-center text-on-surface-variant font-label-caps text-label-caps hover:text-primary transition-colors">Collections</button>
+<button class="flex items-center justify-center text-on-surface-variant font-label-caps text-label-caps hover:text-primary transition-colors">Env</button>
+</div>
+<span class="material-symbols-outlined transition-all duration-200 active:opacity-70 cursor-pointer">settings</span>
+</div>
+</header>
+<!-- Main Workspace Layout -->
+<main class="flex-1 mt-14 flex overflow-hidden">
+<!-- Sidebar: Collections & History -->
+<aside class="w-80 h-full bg-surface-container border-r border-outline-variant/20 flex flex-col py-6 shrink-0">
+<!-- Workspace Profile Header -->
+<div class="px-6 mb-6 flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+<span class="material-symbols-outlined text-primary">work</span>
+</div>
+<div>
+<h3 class="text-on-surface font-headline-md text-[14px] font-bold">Personal Workspace</h3>
+<p class="text-on-surface-variant text-[11px] font-label-caps">Pro Plan • v1.4.2</p>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto">
+<div class="px-4 mb-4">
+<p class="text-[11px] font-label-caps text-outline mb-2 px-2">RECENT REQUESTS</p>
+<div class="space-y-1">
+<div class="bg-primary-container text-on-primary-container rounded-full px-4 py-2 flex items-center gap-3 cursor-pointer">
+<span class="font-code-block text-[10px] text-primary px-1.5 py-0.5 bg-background rounded">POST</span>
+<span class="text-body-sm truncate">Auth/Login</span>
+</div>
+<div class="text-on-surface-variant px-4 py-2 rounded-full hover:bg-surface-variant/50 transition-colors flex items-center gap-3 cursor-pointer">
+<span class="font-code-block text-[10px] text-secondary px-1.5 py-0.5 bg-background rounded">GET</span>
+<span class="text-body-sm truncate">Users/Profile</span>
+</div>
+<div class="text-on-surface-variant px-4 py-2 rounded-full hover:bg-surface-variant/50 transition-colors flex items-center gap-3 cursor-pointer">
+<span class="font-code-block text-[10px] text-tertiary px-1.5 py-0.5 bg-background rounded">PUT</span>
+<span class="text-body-sm truncate">Settings/Update</span>
+</div>
+</div>
+</div>
+<div class="px-4">
+<p class="text-[11px] font-label-caps text-outline mb-2 px-2">COLLECTIONS</p>
+<div class="space-y-1">
+<div class="text-on-surface-variant px-4 py-2 rounded-full hover:bg-surface-variant/50 transition-colors flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span class="text-body-sm">Payments API</span>
+</div>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</div>
+<div class="text-on-surface-variant px-4 py-2 rounded-full hover:bg-surface-variant/50 transition-colors flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span class="text-body-sm">Inventory Services</span>
+</div>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</div>
+</div>
+</div>
+</nav>
+<div class="px-4 mt-auto pt-4 border-t border-outline-variant/10">
+<div class="text-on-surface-variant px-4 py-2 rounded-full hover:bg-surface-variant/50 transition-colors flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined text-sm">delete</span>
+<span class="text-body-sm">Trash</span>
+</div>
+</div>
+</aside>
+<!-- Central Pane: Request Builder -->
+<section class="flex-1 flex flex-col bg-background min-w-0">
+<!-- Request Top Bar -->
+<div class="p-4 flex flex-col gap-4">
+<!-- URL Input Area -->
+<div class="flex gap-2 items-center">
+<div class="relative group flex-1">
+<div class="flex h-11 bg-surface-container-low border border-outline-variant/30 rounded-xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+<select class="bg-surface-container-high border-none text-primary font-code-block text-[12px] px-3 focus:ring-0 cursor-pointer">
+<option>POST</option>
+<option>GET</option>
+<option>PUT</option>
+<option>DELETE</option>
+<option>PATCH</option>
+</select>
+<input class="flex-1 bg-transparent border-none text-on-surface font-code-block text-[13px] px-4 focus:ring-0" placeholder="Enter request URL" type="text" value="https://api.vortex-systems.io/v1/auth/login"/>
+</div>
+</div>
+<button class="h-11 px-6 bg-primary text-on-primary font-label-caps text-label-caps rounded-xl flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-lg">send</span>
+<span>SEND</span>
+</button>
+</div>
+<!-- Config Tabs -->
+<div class="flex border-b border-outline-variant/20">
+<button class="px-4 py-2 border-b-2 border-primary text-primary font-label-caps text-[11px]">BODY</button>
+<button class="px-4 py-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-label-caps text-[11px] transition-colors">PARAMS</button>
+<button class="px-4 py-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-label-caps text-[11px] transition-colors">AUTH</button>
+<button class="px-4 py-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-label-caps text-[11px] transition-colors">HEADERS</button>
+<button class="px-4 py-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-label-caps text-[11px] transition-colors">SCRIPTS</button>
+</div>
+</div>
+<!-- Body Editor Area -->
+<div class="flex-1 p-4 overflow-hidden flex flex-col">
+<div class="flex items-center gap-4 mb-3">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="text-primary focus:ring-primary bg-transparent border-outline-variant" name="body-type" type="radio"/>
+<span class="text-body-sm text-on-surface">json</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer">
+<input class="text-primary focus:ring-primary bg-transparent border-outline-variant" name="body-type" type="radio"/>
+<span class="text-body-sm text-on-surface-variant">form-data</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer">
+<input class="text-primary focus:ring-primary bg-transparent border-outline-variant" name="body-type" type="radio"/>
+<span class="text-body-sm text-on-surface-variant">raw</span>
+</label>
+</div>
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant/20 rounded-xl relative overflow-hidden font-code-block text-[13px] p-4 group">
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-1.5 bg-surface-container-high rounded-lg text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+</div>
+<div class="flex">
+<div class="pr-4 border-r border-outline-variant/10 text-outline-variant text-right select-none">
+                            1<br/>2<br/>3<br/>4<br/>5<br/>6
+                        </div>
+<div class="pl-4">
+<span class="text-outline">{</span><br/>
+                              <span class="text-primary">"username"</span>: <span class="text-secondary">"dev_alpha_01"</span>,<br/>
+                              <span class="text-primary">"password"</span>: <span class="text-secondary">"••••••••••••"</span>,<br/>
+                              <span class="text-primary">"mfa_token"</span>: <span class="text-tertiary">null</span>,<br/>
+                              <span class="text-primary">"remember_me"</span>: <span class="text-tertiary">true</span><br/>
+<span class="text-outline">}</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Response Viewer (Split Pane Style) -->
+<div class="h-1/2 border-t border-outline-variant/30 bg-surface-container-low flex flex-col overflow-hidden">
+<div class="px-4 h-12 border-b border-outline-variant/10 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<h4 class="font-label-caps text-[11px] text-outline">RESPONSE</h4>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-status-badge text-status-badge text-secondary">200 OK</span>
+</div>
+<span class="font-status-badge text-status-badge text-on-surface-variant">42ms</span>
+<span class="font-status-badge text-status-badge text-on-surface-variant">1.2 KB</span>
+</div>
+<div class="flex gap-2">
+<button class="p-2 hover:bg-surface-variant/50 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-sm">download</span>
+</button>
+<button class="p-2 hover:bg-surface-variant/50 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-sm">wrap_text</span>
+</button>
+</div>
+</div>
+<div class="flex-1 overflow-auto p-4">
+<div class="font-code-block text-[13px] leading-relaxed">
+<span class="text-outline">{</span><br/>
+                          <span class="text-primary">"status"</span>: <span class="text-secondary">"success"</span>,<br/>
+                          <span class="text-primary">"data"</span>: {<br/>
+                            <span class="text-primary">"token"</span>: <span class="text-secondary">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,<br/>
+                            <span class="text-primary">"expires_at"</span>: <span class="text-secondary">"2023-12-31T23:59:59Z"</span>,<br/>
+                            <span class="text-primary">"user"</span>: {<br/>
+                              <span class="text-primary">"id"</span>: <span class="text-tertiary">1042</span>,<br/>
+                              <span class="text-primary">"role"</span>: <span class="text-secondary">"admin"</span><br/>
+                            }<br/>
+                          }<br/>
+<span class="text-outline">}</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Sidebar: Docs & Meta -->
+<aside class="w-72 h-full bg-surface-container border-l border-outline-variant/20 flex flex-col shrink-0">
+<div class="p-4 border-b border-outline-variant/10">
+<h4 class="font-label-caps text-[11px] text-outline mb-4">DOCUMENTATION</h4>
+<p class="text-body-sm text-on-surface-variant leading-relaxed mb-4">
+                    Authenticates a user and returns a temporary session token. Use the <code class="bg-surface-variant px-1 rounded">X-API-KEY</code> in subsequent requests.
+                </p>
+<a class="text-[11px] font-label-caps text-primary hover:underline flex items-center gap-1" href="#">
+                    VIEW FULL DOCS
+                    <span class="material-symbols-outlined text-xs">open_in_new</span>
+</a>
+</div>
+<div class="flex-1 p-4">
+<h4 class="font-label-caps text-[11px] text-outline mb-4">ENVIRONMENT</h4>
+<div class="space-y-4">
+<div class="bg-surface-container-high rounded-xl p-3 border border-outline-variant/20">
+<div class="flex justify-between items-center mb-2">
+<span class="text-[10px] font-label-caps text-secondary">PROD_CLUSTER</span>
+<span class="material-symbols-outlined text-sm text-outline">language</span>
+</div>
+<p class="text-[12px] font-code-block text-on-surface truncate">https://api.vortex-systems.io</p>
+</div>
+<div class="glass-panel rounded-xl p-6 relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent"></div>
+<h5 class="text-headline-md text-[14px] font-bold mb-1 relative">Insights</h5>
+<p class="text-body-sm text-on-surface-variant text-[12px] relative mb-4">Daily request limit: 92% reached</p>
+<div class="w-full bg-background/50 h-1.5 rounded-full overflow-hidden relative">
+<div class="bg-primary h-full w-[92%]"></div>
+</div>
+<img class="absolute -right-4 -bottom-4 w-20 h-20 opacity-20 rotate-12" data-alt="A futuristic holographic dashboard display showing various performance metrics and glowing data streams. The aesthetic is deep obsidian with electric violet neon accents, mirroring a high-tech developer workspace. Soft atmospheric lighting creates a sense of focused professional energy." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaj8XQ_BthupyZLC2D8ihhM8JPAHVa7lKuoYAMaUAABw8Elan1M_iDv_IYfGgAYt2lVdZyDHksvBURsyE_3w_sncKPVSqxkBtkxmIORFNWxpZJi0VObs1s91rWV7TgS4X77PQ0NO2NaXOX-4m6Mk7Ke7I-0GK-_CsUr8B6tkT_pwtQ8S3ZXWFL0WCjqb0txwOsdSZiR6PCSqHDFXNfkAXvmsz87occgTRKNfxX5GIUJlMg3NJ3PzC4W4I5jQIVFqoZchiDun0k-S0"/>
+</div>
+</div>
+</div>
+</aside>
+</main>
+<!-- Bottom Navigation (Mobile Only Shell Suppression logic handled by responsive hidden classes) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-16 px-2 pb-safe bg-surface-container-low border-t border-outline-variant/30 z-50">
+<div class="flex flex-col items-center justify-center bg-primary-container/20 text-primary rounded-xl px-3 py-1 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+<span class="font-label-caps text-label-caps">Builder</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="font-label-caps text-label-caps">History</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+<span class="font-label-caps text-label-caps">Collections</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="language">language</span>
+<span class="font-label-caps text-label-caps">Env</span>
+</div>
+</nav>
+<script>
+        // Micro-interactions for request builder
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('focus', () => {
+                el.closest('.group')?.classList.add('ring-1', 'ring-primary/50');
+            });
+            el.addEventListener('blur', () => {
+                el.closest('.group')?.classList.remove('ring-1', 'ring-primary/50');
+            });
+        });
+
+        // Tab switching logic (simple visual toggle)
+        const tabs = document.querySelectorAll('.border-b-2');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => {
+                    t.classList.remove('border-primary', 'text-primary');
+                    t.classList.add('border-transparent', 'text-on-surface-variant');
+                });
+                tab.classList.add('border-primary', 'text-primary');
+                tab.classList.remove('border-transparent', 'text-on-surface-variant');
+            });
+        });
+    </script>
+</body></html>

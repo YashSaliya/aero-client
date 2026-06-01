@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&amp;family=Hanken+Grotesk:wght@400;500&amp;family=JetBrains+Mono:wght@450;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style id="tailwind-config">
+        /* Tailwind configuration is embedded via script below */
+    </style>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#31394d",
+                        "error": "#ffb4ab",
+                        "surface-variant": "#2d3449",
+                        "on-primary": "#3c0091",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#494454",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#283044",
+                        "primary-container": "#a078ff",
+                        "tertiary": "#ffb95f",
+                        "secondary": "#4edea3",
+                        "background": "#0b1326",
+                        "secondary-container": "#00a572",
+                        "inverse-surface": "#dae2fd",
+                        "tertiary-fixed": "#ffddb8",
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "secondary-fixed-dim": "#4edea3",
+                        "surface-container-highest": "#2d3449",
+                        "on-background": "#dae2fd",
+                        "on-tertiary-container": "#3e2400",
+                        "on-surface-variant": "#cbc3d7",
+                        "surface-container": "#171f33",
+                        "on-secondary": "#003824",
+                        "on-primary-fixed": "#23005c",
+                        "tertiary-container": "#ca8100",
+                        "on-primary-container": "#340080",
+                        "surface-container-high": "#222a3d",
+                        "on-tertiary": "#472a00",
+                        "primary-fixed": "#e9ddff",
+                        "primary-fixed-dim": "#d0bcff",
+                        "on-secondary-fixed": "#002113",
+                        "outline": "#958ea0",
+                        "on-secondary-fixed-variant": "#005236",
+                        "surface-container-low": "#131b2e",
+                        "surface-tint": "#d0bcff",
+                        "primary": "#d0bcff",
+                        "inverse-primary": "#6d3bd7",
+                        "surface-dim": "#0b1326",
+                        "secondary-fixed": "#6ffbbe",
+                        "on-primary-fixed-variant": "#5516be",
+                        "surface": "#0b1326",
+                        "on-tertiary-fixed-variant": "#653e00",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed": "#2a1700",
+                        "surface-container-lowest": "#060e20",
+                        "on-surface": "#dae2fd",
+                        "on-secondary-container": "#00311f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-padding": "16px",
+                        "unit": "4px",
+                        "gutter": "12px",
+                        "stack-lg": "24px",
+                        "stack-md": "16px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["JetBrains Mono"],
+                        "code-block": ["JetBrains Mono"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-lg": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "body-sm": ["Hanken Grotesk"],
+                        "status-badge": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "code-block": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "status-badge": ["12px", {"lineHeight": "14px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0b1326;
+            color: #dae2fd;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+        }
+        .method-get { color: #4edea3; }
+        .method-post { color: #8B5CF6; }
+        .method-put { color: #ffb95f; }
+        .method-delete { color: #ffb4ab; }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #2d3449;
+            border-radius: 10px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-lg text-body-lg selection:bg-primary-container/30">
+<!-- Top App Bar -->
+<header class="fixed top-0 w-full z-50 bg-background border-b border-outline-variant/30 flex justify-between items-center px-container-padding h-14 w-full">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary cursor-pointer transition-all duration-200 active:opacity-70 hover:bg-surface-container-high/50 p-1 rounded-lg">menu</span>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">API Client</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer transition-all duration-200 active:opacity-70 hover:bg-surface-container-high/50 p-1 rounded-lg">settings</span>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="pt-20 pb-24 px-container-padding min-h-screen">
+<!-- Search Section -->
+<section class="mb-stack-lg">
+<div class="relative flex items-center group">
+<span class="material-symbols-outlined absolute left-4 text-on-surface-variant pointer-events-none group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-surface-container text-on-surface py-3 pl-12 pr-4 rounded-xl border border-outline-variant/20 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-body-sm text-body-sm" placeholder="Search requests or collections..." type="text"/>
+</div>
+</section>
+<!-- View Toggle (Logic for Collections vs History) -->
+<div class="flex gap-4 mb-stack-md border-b border-outline-variant/10 pb-1">
+<button class="pb-2 px-1 font-label-caps text-label-caps border-b-2 border-primary text-primary transition-all" id="tab-collections" onclick="switchTab('collections')">Collections</button>
+<button class="pb-2 px-1 font-label-caps text-label-caps border-b-2 border-transparent text-on-surface-variant transition-all" id="tab-history" onclick="switchTab('history')">History</button>
+</div>
+<!-- Scrollable Area -->
+<div class="space-y-gutter custom-scrollbar overflow-y-auto max-h-[calc(100vh-280px)]">
+<!-- Collections View (Initial) -->
+<div class="space-y-stack-sm" id="view-collections">
+<!-- Collection Folder 1 -->
+<div class="glass-card rounded-xl overflow-hidden">
+<div class="p-4 flex items-center justify-between cursor-pointer active:bg-surface-container-high/30" onclick="toggleFolder('folder-auth')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary">folder</span>
+<div>
+<h3 class="font-headline-md text-[16px] leading-tight">Authentication API</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">12 Requests • Modified 2h ago</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant transition-transform rotate-180" id="chevron-auth">expand_more</span>
+</div>
+<div class="bg-surface-container-lowest/40 border-t border-outline-variant/10" id="folder-auth">
+<!-- Request Item -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-surface-bright/20 border-b border-outline-variant/5 last:border-0 cursor-pointer group">
+<div class="flex items-center gap-3 overflow-hidden">
+<span class="font-status-badge text-status-badge method-post w-10 shrink-0">POST</span>
+<div class="truncate">
+<span class="font-body-sm text-body-sm block truncate">Login User</span>
+<span class="font-code-block text-[10px] text-on-surface-variant truncate">/v1/auth/login</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</div>
+<!-- Request Item -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-surface-bright/20 border-b border-outline-variant/5 last:border-0 cursor-pointer group">
+<div class="flex items-center gap-3 overflow-hidden">
+<span class="font-status-badge text-status-badge method-get w-10 shrink-0">GET</span>
+<div class="truncate">
+<span class="font-body-sm text-body-sm block truncate">Fetch Profile</span>
+<span class="font-code-block text-[10px] text-on-surface-variant truncate">/v1/auth/me</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</div>
+</div>
+</div>
+<!-- Collection Folder 2 -->
+<div class="glass-card rounded-xl overflow-hidden">
+<div class="p-4 flex items-center justify-between cursor-pointer active:bg-surface-container-high/30" onclick="toggleFolder('folder-payments')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">folder</span>
+<div>
+<h3 class="font-headline-md text-[16px] leading-tight">Payment Gateway</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">5 Requests • Modified 1d ago</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant transition-transform" id="chevron-payments">expand_more</span>
+</div>
+<div class="hidden bg-surface-container-lowest/40 border-t border-outline-variant/10" id="folder-payments">
+<div class="px-4 py-8 text-center text-on-surface-variant font-body-sm">Folder expanded view placeholder</div>
+</div>
+</div>
+<!-- Collection Folder 3 -->
+<div class="glass-card rounded-xl overflow-hidden">
+<div class="p-4 flex items-center justify-between cursor-pointer active:bg-surface-container-high/30" onclick="toggleFolder('folder-internal')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">folder</span>
+<div>
+<h3 class="font-headline-md text-[16px] leading-tight">Internal Tools</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">24 Requests • Modified 3d ago</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant transition-transform" id="chevron-internal">expand_more</span>
+</div>
+<div class="hidden bg-surface-container-lowest/40 border-t border-outline-variant/10" id="folder-internal"></div>
+</div>
+</div>
+<!-- History View (Hidden initially) -->
+<div class="hidden space-y-2" id="view-history">
+<div class="text-[10px] font-label-caps text-on-surface-variant/60 ml-1 mb-2">TODAY — OCT 24</div>
+<!-- History Items -->
+<div class="glass-card rounded-xl p-4 flex items-center justify-between group active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 overflow-hidden">
+<div class="flex flex-col items-center">
+<span class="font-status-badge text-status-badge method-get">GET</span>
+<span class="text-[10px] font-code-block text-secondary mt-0.5">200</span>
+</div>
+<div class="truncate">
+<h4 class="font-body-sm text-body-sm truncate">Get Analytics Overview</h4>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-code-block text-[10px] text-on-surface-variant truncate">api.service.com/v2/metrics</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-code-block text-[10px] text-on-surface-variant">14:22</span>
+</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-40 group-hover:opacity-100">history</span>
+</div>
+<div class="glass-card rounded-xl p-4 flex items-center justify-between group active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 overflow-hidden">
+<div class="flex flex-col items-center">
+<span class="font-status-badge text-status-badge method-post">POST</span>
+<span class="text-[10px] font-code-block text-error mt-0.5">401</span>
+</div>
+<div class="truncate">
+<h4 class="font-body-sm text-body-sm truncate">Invalid Token Attempt</h4>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-code-block text-[10px] text-on-surface-variant truncate">auth.prod.io/refresh</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-code-block text-[10px] text-on-surface-variant">13:05</span>
+</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-40 group-hover:opacity-100">history</span>
+</div>
+<div class="glass-card rounded-xl p-4 flex items-center justify-between group active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 overflow-hidden">
+<div class="flex flex-col items-center">
+<span class="font-status-badge text-status-badge method-delete">DEL</span>
+<span class="text-[10px] font-code-block text-secondary mt-0.5">204</span>
+</div>
+<div class="truncate">
+<h4 class="font-body-sm text-body-sm truncate">Clear Cache Cluster</h4>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-code-block text-[10px] text-on-surface-variant truncate">cache-01.local/flush</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-code-block text-[10px] text-on-surface-variant">11:14</span>
+</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-40 group-hover:opacity-100">history</span>
+</div>
+<div class="text-[10px] font-label-caps text-on-surface-variant/60 ml-1 mt-6 mb-2">YESTERDAY — OCT 23</div>
+<div class="glass-card rounded-xl p-4 flex items-center justify-between group active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 overflow-hidden">
+<div class="flex flex-col items-center">
+<span class="font-status-badge text-status-badge method-put">PUT</span>
+<span class="text-[10px] font-code-block text-secondary mt-0.5">200</span>
+</div>
+<div class="truncate">
+<h4 class="font-body-sm text-body-sm truncate">Update Metadata</h4>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-code-block text-[10px] text-on-surface-variant truncate">api.data.net/objects/392</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-code-block text-[10px] text-on-surface-variant">22:45</span>
+</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-40 group-hover:opacity-100">history</span>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB for New Action -->
+<button class="fixed right-6 bottom-24 w-14 h-14 bg-primary text-on-primary rounded-full shadow-2xl flex items-center justify-center transition-transform active:scale-90 hover:scale-105 z-40">
+<span class="material-symbols-outlined">add</span>
+</button>
+<!-- Navigation Shell -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-16 px-2 pb-safe bg-surface-container-low border-t border-outline-variant/30 z-50">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors transition-transform scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">send</span>
+<span class="font-label-caps text-label-caps">Builder</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors transition-transform scale-95 active:scale-90" href="#" onclick="switchTab('history')">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-caps text-label-caps">History</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container/20 text-primary rounded-xl px-3 py-1 transition-colors transition-transform scale-95 active:scale-90" href="#" onclick="switchTab('collections')">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="font-label-caps text-label-caps">Collections</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors transition-transform scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">language</span>
+<span class="font-label-caps text-label-caps">Env</span>
+</a>
+</nav>
+<script>
+        function switchTab(view) {
+            const collectionsView = document.getElementById('view-collections');
+            const historyView = document.getElementById('view-history');
+            const collTab = document.getElementById('tab-collections');
+            const histTab = document.getElementById('tab-history');
+
+            if (view === 'collections') {
+                collectionsView.classList.remove('hidden');
+                historyView.classList.add('hidden');
+                collTab.classList.add('border-primary', 'text-primary');
+                collTab.classList.remove('border-transparent', 'text-on-surface-variant');
+                histTab.classList.add('border-transparent', 'text-on-surface-variant');
+                histTab.classList.remove('border-primary', 'text-primary');
+            } else {
+                collectionsView.classList.add('hidden');
+                historyView.classList.remove('hidden');
+                histTab.classList.add('border-primary', 'text-primary');
+                histTab.classList.remove('border-transparent', 'text-on-surface-variant');
+                collTab.classList.add('border-transparent', 'text-on-surface-variant');
+                collTab.classList.remove('border-primary', 'text-primary');
+            }
+        }
+
+        function toggleFolder(id) {
+            const folder = document.getElementById(id);
+            const chevron = document.getElementById('chevron-' + id.split('-')[1]);
+            
+            if (folder.classList.contains('hidden')) {
+                folder.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+            } else {
+                folder.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+            }
+        }
+        
+        // Micro-interaction for search focus
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('scale-[1.01]');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('scale-[1.01]');
+        });
+    </script>
+</body></html>

@@ -2,6 +2,7 @@ mod app;
 mod client;
 mod storage;
 mod theme;
+mod environments;
 
 fn main() -> Result<(), eframe::Error> {
     // Enable logging or other setup if needed

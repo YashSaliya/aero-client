@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::client::{AsyncHttpClient, ClientMessage, HttpRequest, HttpResponse, KeyValue};
 use crate::storage::{ApiCollection, CollectionItem, CollectionStorage, FolderNode, SavedRequest};
+use crate::environments::{Environment, EnvironmentStorage, substitute_variables};
 use crate::theme;
 
 // Tabs for configuring request parameters
@@ -13,6 +14,13 @@ enum RequestTab {
     Body,
     GraphQL,
     Params,
+}
+
+// Switches between editing a Request vs editing Environment variables
+#[derive(PartialEq, Clone)]
+enum ActivePanel {
+    Request,
+    Environment(usize), // index of the environment being edited
 }
 
 // State representing the currently open request in the editor
@@ -62,7 +70,6 @@ impl RequestEditorState {
             graphql_variables: saved.graphql_variables.clone().unwrap_or_else(|| r#"{"variables": {}}"#.to_string()),
             active_tab: RequestTab::Headers,
         };
-        // Populate params from saved URL initially
         editor.params = parse_url_params(&saved.url);
         editor
     }
@@ -84,9 +91,14 @@ impl RequestEditorState {
 pub struct AeroApp {
     client: AsyncHttpClient,
     storage: CollectionStorage,
+    env_storage: EnvironmentStorage,
 
     collections: Vec<ApiCollection>,
+    environments: Vec<Environment>,
+    
     active_request: RequestEditorState,
+    active_panel: ActivePanel,
+    active_env_idx: Option<usize>, // Selected profile for variable substitution
     
     // Asynchronous communication states
     active_rx: Option<Receiver<ClientMessage>>,
@@ -98,6 +110,8 @@ pub struct AeroApp {
     new_header_val: String,
     new_param_key: String,
     new_param_val: String,
+    new_env_var_key: String,
+    new_env_var_val: String,
     selected_col_idx: usize,
     last_synced_url: String, // Tracks URL changes to avoid infinite loop
 }
@@ -109,14 +123,22 @@ impl AeroApp {
 
         let storage = CollectionStorage::new();
         let collections = storage.load_collections();
+
+        let env_storage = EnvironmentStorage::new();
+        let environments = env_storage.load_environments();
+
         let active_request = RequestEditorState::new();
         let last_synced_url = active_request.url.clone();
 
         Self {
             client: AsyncHttpClient::new(),
             storage,
+            env_storage,
             collections,
+            environments,
             active_request,
+            active_panel: ActivePanel::Request,
+            active_env_idx: Some(0), // Default to first environment (Development)
             active_rx: None,
             is_loading: false,
             last_response: None,
@@ -124,21 +146,27 @@ impl AeroApp {
             new_header_val: "".to_string(),
             new_param_key: "".to_string(),
             new_param_val: "".to_string(),
+            new_env_var_key: "".to_string(),
+            new_env_var_val: "".to_string(),
             selected_col_idx: 0,
             last_synced_url,
         }
     }
 
-    // Helper to generate a cURL representation of the current request
     fn get_curl_string(&self) -> String {
-        let mut curl = format!("curl -X {} \"{}\"", self.active_request.method, self.active_request.url);
+        let active_env = self.active_env_idx.and_then(|idx| self.environments.get(idx).cloned());
+        let substituted_url = substitute_variables(&self.active_request.url, &active_env);
+        
+        let mut curl = format!("curl -X {} \"{}\"", self.active_request.method, substituted_url);
         for h in &self.active_request.headers {
             if h.active && !h.key.is_empty() {
-                curl.push_str(&format!(" \\\n  -H \"{}: {}\"", h.key, h.value));
+                let sub_val = substitute_variables(&h.value, &active_env);
+                curl.push_str(&format!(" \\\n  -H \"{}: {}\"", h.key, sub_val));
             }
         }
         if !self.active_request.body.is_empty() && self.active_request.method != "GET" {
-            let escaped_body = self.active_request.body.replace("\"", "\\\"");
+            let sub_body = substitute_variables(&self.active_request.body, &active_env);
+            let escaped_body = sub_body.replace("\"", "\\\"");
             curl.push_str(&format!(" \\\n  -d \"{}\"", escaped_body));
         }
         curl
@@ -168,10 +196,9 @@ fn draw_recursive_item(
                     *selected_col_idx = col_idx;
                 }
 
-                // Delete request button
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.small_button("❌").clicked() {
-                        indices.push(999); // Flag deletion
+                        indices.push(999);
                         *col_to_save = true;
                     }
                 });
@@ -183,14 +210,12 @@ fn draw_recursive_item(
                 .show_header(ui, |ui| {
                     ui.label(egui::RichText::new(format!("📁 {}", folder.name)).strong());
                     
-                    // Folder operations CRUD
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.small_button("❌").clicked() {
-                            indices.push(999); // Flag deletion
+                            indices.push(999);
                             *col_to_save = true;
                         }
                         if ui.small_button("✚").clicked() {
-                            // Add request inside folder
                             let new_req = SavedRequest {
                                 id: Uuid::new_v4().to_string(),
                                 name: "New Request".to_string(),
@@ -205,7 +230,6 @@ fn draw_recursive_item(
                             *col_to_save = true;
                         }
                         if ui.small_button("📁").clicked() {
-                            // Add subfolder
                             let new_folder = FolderNode {
                                 id: Uuid::new_v4().to_string(),
                                 name: "New Folder".to_string(),
@@ -245,8 +269,8 @@ fn draw_recursive_item(
                         *col_to_save = true;
                     }
                 });
+        }
     }
-}
 }
 
 // Helpers for bidirectional URL ➔ Query Parameter Syncing
@@ -288,7 +312,6 @@ fn rebuild_url_with_params(url_str: &str, params: &[KeyValue]) -> String {
 
 impl eframe::App for AeroApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // 1. Process asynchronous message queue responses
         if let Some(ref rx) = self.active_rx {
             if let Ok(msg) = rx.try_recv() {
                 match msg {
@@ -308,20 +331,20 @@ impl eframe::App for AeroApp {
             ctx.request_repaint();
         }
 
-        // Bidirectional Sync Part 1: URL modified by user -> Update Param rows
+        // URL modified by user -> Update Param rows
         if self.active_request.url != self.last_synced_url {
             self.active_request.params = parse_url_params(&self.active_request.url);
             self.last_synced_url = self.active_request.url.clone();
         }
 
-        // 2. Render Sidebar
+        // Render Sidebar
         egui::SidePanel::left("sidebar_panel")
             .frame(egui::Frame::none().fill(theme::COLOR_BG_SIDEBAR))
             .width_range(250.0..=310.0)
             .show(ctx, |ui| {
                 ui.add_space(16.0);
                 
-                // Branding Header Logo with custom linear gradient line below it!
+                // Branding Header
                 ui.horizontal(|ui| {
                     ui.add_space(12.0);
                     ui.heading(
@@ -332,17 +355,39 @@ impl eframe::App for AeroApp {
                 });
                 ui.add_space(6.0);
                 
-                // Draw a beautiful horizontal linear accent line under branding
+                // Accent gradient line
                 let (accent_rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width() - 24.0, 2.0), egui::Sense::hover());
                 theme::paint_linear_gradient(ui, accent_rect, theme::COLOR_PRIMARY, theme::COLOR_PATCH);
                 
                 ui.add_space(10.0);
+
+                // Environment profile switcher select box
+                ui.horizontal(|ui| {
+                    ui.add_space(8.0);
+                    ui.label("Environment:");
+                    let current_env_label = match self.active_env_idx {
+                        Some(idx) => self.environments.get(idx).map(|e| e.name.as_str()).unwrap_or("No Environment"),
+                        None => "No Environment",
+                    };
+                    
+                    egui::ComboBox::from_id_source("env_selector")
+                        .selected_text(egui::RichText::new(current_env_label).strong())
+                        .width(ui.available_width() - 12.0)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.active_env_idx, None, "No Environment");
+                            for (idx, env) in self.environments.iter().enumerate() {
+                                ui.selectable_value(&mut self.active_env_idx, Some(idx), &env.name);
+                            }
+                        });
+                });
+                ui.add_space(6.0);
 
                 // Sidebar controls
                 ui.vertical_centered_justified(|ui| {
                     ui.add_space(4.0);
                     if theme::draw_custom_button(ui, "✚ New Request", theme::COLOR_PRIMARY, egui::Color32::WHITE).clicked() {
                         self.active_request = RequestEditorState::new();
+                        self.active_panel = ActivePanel::Request;
                         self.last_response = None;
                         self.last_synced_url = self.active_request.url.clone();
                     }
@@ -376,7 +421,7 @@ impl eframe::App for AeroApp {
                 });
                 ui.add_space(6.0);
 
-                egui::ScrollArea::vertical().show(ui, |ui| {
+                egui::ScrollArea::vertical().id_source("collections_scroll").show(ui, |ui| {
                     let mut req_to_load = None;
                     let mut col_to_save_idx = None;
                     let mut col_to_delete_idx = None;
@@ -389,13 +434,11 @@ impl eframe::App for AeroApp {
                             .show_header(ui, |ui| {
                                 ui.label(egui::RichText::new(format!("📁 {}", col.name)).strong());
                                 
-                                // Collection operation buttons
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     if ui.small_button("❌").clicked() {
                                         col_to_delete_idx = Some(col_idx);
                                     }
                                     if ui.small_button("✚").clicked() {
-                                        // Add request inside collection root
                                         let new_req = SavedRequest {
                                             id: Uuid::new_v4().to_string(),
                                             name: "New Request".to_string(),
@@ -410,9 +453,9 @@ impl eframe::App for AeroApp {
                                         req_to_load = Some(new_req);
                                         self.selected_col_idx = col_idx;
                                         col_to_save_idx = Some(col_idx);
+                                        self.active_panel = ActivePanel::Request;
                                     }
                                     if ui.small_button("📁").clicked() {
-                                        // Add nested folder inside collection root
                                         let new_folder = FolderNode {
                                             id: Uuid::new_v4().to_string(),
                                             name: "New Folder".to_string(),
@@ -460,6 +503,7 @@ impl eframe::App for AeroApp {
                     if let Some(req) = req_to_load {
                         self.active_request = RequestEditorState::from_saved(&req);
                         self.last_response = None;
+                        self.active_panel = ActivePanel::Request;
                         self.last_synced_url = self.active_request.url.clone();
                     }
 
@@ -472,506 +516,640 @@ impl eframe::App for AeroApp {
                         self.collections.remove(idx);
                     }
                 });
-            });
 
-        // 3. Render Workspace & Response Main Panel
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(8.0);
 
-            // Workspace Header: Name and Save options
-            ui.horizontal(|ui| {
-                ui.text_edit_singleline(&mut self.active_request.name);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let save_btn = ui.add(
-                        egui::Button::new(
-                            egui::RichText::new("💾 Save Request")
-                                .color(theme::COLOR_TEXT_ACTIVE)
-                                .strong()
-                        )
-                        .fill(theme::COLOR_BG_SIDEBAR)
-                        .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
-                    );
-                    if save_btn.clicked() {
-                        if !self.collections.is_empty() {
-                            let col = &mut self.collections[self.selected_col_idx];
-                            
-                            // Nested search and update function
-                            fn update_nested_item(items: &mut [CollectionItem], target: &SavedRequest) -> bool {
-                                for item in items.iter_mut() {
-                                    match item {
-                                        CollectionItem::Request(req) => {
-                                            if req.id == target.id {
-                                                *req = target.clone();
-                                                return true;
-                                            }
-                                        }
-                                        CollectionItem::Folder(folder) => {
-                                            if update_nested_item(&mut folder.items, target) {
-                                                return true;
-                                            }
-                                        }
-                                    }
-                                }
-                                false
-                            }
-
-                            let target_saved = self.active_request.to_saved();
-                            if !update_nested_item(&mut col.items, &target_saved) {
-                                // Add to collection root if not found nested
-                                col.items.push(CollectionItem::Request(target_saved));
-                            }
-                            let _ = self.storage.save_collection(col);
-                        }
-                    }
-                });
-            });
-            ui.add_space(10.0);
-
-            // Row 1: Method + URL Bar + Send Button
-            ui.horizontal(|ui| {
-                egui::ComboBox::from_id_source("method_combo")
-                    .selected_text(
-                        egui::RichText::new(&self.active_request.method)
-                            .color(theme::get_method_color(&self.active_request.method))
+                // ENVIRONMENTS Section CRUD Bar
+                ui.horizontal(|ui| {
+                    ui.add_space(12.0);
+                    ui.label(
+                        egui::RichText::new("ENVIRONMENTS")
+                            .color(theme::COLOR_TEXT_MUTED)
                             .strong()
-                    )
-                    .width(100.0)
-                    .show_ui(ui, |ui| {
-                        for m in &["GET", "POST", "PUT", "DELETE", "PATCH"] {
-                            ui.selectable_value(
-                                &mut self.active_request.method,
-                                m.to_string(),
-                                egui::RichText::new(*m).color(theme::get_method_color(m)).strong()
-                            );
-                        }
-                    });
-
-                // URL Text Edit
-                let url_field = ui.add(
-                    egui::TextEdit::singleline(&mut self.active_request.url)
-                        .hint_text("Enter Request URL (e.g. jsonplaceholder.typicode.com/users)")
-                        .desired_width(ui.available_width() - 110.0)
-                );
-
-                // Send Button with a GORGEOUS linear gradient background
-                if self.is_loading {
-                    ui.add(egui::Spinner::new());
-                } else {
-                    let send_btn = theme::draw_gradient_button(
-                        ui, 
-                        "Send ➤", 
-                        theme::COLOR_PRIMARY, 
-                        theme::COLOR_PATCH
+                            .size(11.0)
                     );
                     
-                    if send_btn.clicked() || (url_field.lost_focus() && ctx.input(|i| i.key_pressed(egui::Key::Enter))) {
-                        let mut final_headers = self.active_request.headers.clone();
-                        let final_method = if self.active_request.active_tab == RequestTab::GraphQL {
-                            "POST".to_string()
-                        } else {
-                            self.active_request.method.clone()
-                        };
-
-                        let final_body = if self.active_request.active_tab == RequestTab::GraphQL {
-                            if !final_headers.iter().any(|h| h.key.to_lowercase() == "content-type") {
-                                final_headers.push(KeyValue {
-                                    key: "Content-Type".to_string(),
-                                    value: "application/json".to_string(),
-                                    active: true,
-                                });
-                            }
-                            let vars_json = serde_json::from_str::<serde_json::Value>(&self.active_request.graphql_variables)
-                                .unwrap_or(serde_json::json!({}));
-                            serde_json::json!({
-                                "query": self.active_request.graphql_query,
-                                "variables": vars_json
-                            }).to_string()
-                        } else {
-                            self.active_request.body.clone()
-                        };
-
-                        let http_req = HttpRequest {
-                            id: self.active_request.id.clone(),
-                            method: final_method,
-                            url: self.active_request.url.clone(),
-                            headers: final_headers,
-                            body: final_body,
-                        };
-                        self.active_rx = Some(self.client.send(http_req));
-                        self.is_loading = true;
-                    }
-                }
-            });
-
-            ui.add_space(12.0);
-
-            let height = ui.available_height();
-            
-            // Tab Selector for Request Builder
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 6.0;
-                for (tab, name) in &[
-                    (RequestTab::Headers, "Headers"),
-                    (RequestTab::Body, "Body"),
-                    (RequestTab::GraphQL, "GraphQL"),
-                    (RequestTab::Params, "Params"),
-                ] {
-                    let is_selected = self.active_request.active_tab == *tab;
-                    let text_color = if is_selected {
-                        theme::COLOR_PRIMARY
-                    } else {
-                        theme::COLOR_TEXT_MUTED
-                    };
-                    
-                    let tab_btn = ui.add(
-                        egui::Button::new(
-                            egui::RichText::new(*name)
-                                .color(text_color)
-                                .strong()
-                                .size(13.0)
-                        )
-                        .fill(if is_selected { theme::COLOR_BG_INPUT } else { egui::Color32::TRANSPARENT })
-                        .stroke(egui::Stroke::new(1.0, if is_selected { theme::COLOR_BORDER } else { egui::Color32::TRANSPARENT }))
-                    );
-                    if tab_btn.clicked() {
-                        self.active_request.active_tab = match tab {
-                            RequestTab::Headers => RequestTab::Headers,
-                            RequestTab::Body => RequestTab::Body,
-                            RequestTab::GraphQL => RequestTab::GraphQL,
-                            RequestTab::Params => RequestTab::Params,
-                        };
-                    }
-                }
-            });
-            ui.add_space(4.0);
-
-            // Render Request Tab body
-            egui::Frame::none()
-                .fill(theme::COLOR_BG_INPUT)
-                .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
-                .inner_margin(8.0)
-                .rounding(6.0)
-                .show(ui, |ui| {
-                    ui.set_height(height * 0.35); // Take 35% of space
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        match self.active_request.active_tab {
-                            RequestTab::Headers => {
-                                ui.label(egui::RichText::new("HTTP Headers").strong().color(theme::COLOR_TEXT_MUTED));
-                                ui.add_space(4.0);
-                                
-                                let mut to_remove = None;
-                                for (idx, h) in self.active_request.headers.iter_mut().enumerate() {
-                                    ui.horizontal(|ui| {
-                                        ui.checkbox(&mut h.active, "");
-                                        ui.text_edit_singleline(&mut h.key);
-                                        ui.label(":");
-                                        ui.text_edit_singleline(&mut h.value);
-                                        if ui.button("❌").clicked() {
-                                            to_remove = Some(idx);
-                                        }
-                                    });
-                                }
-                                if let Some(idx) = to_remove {
-                                    self.active_request.headers.remove(idx);
-                                }
-
-                                ui.add_space(4.0);
-                                ui.horizontal(|ui| {
-                                    ui.text_edit_singleline(&mut self.new_header_key).highlight();
-                                    ui.label(":");
-                                    ui.text_edit_singleline(&mut self.new_header_val);
-                                    if ui.button("➕ Add Header").clicked() {
-                                        if !self.new_header_key.is_empty() {
-                                            self.active_request.headers.push(KeyValue {
-                                                key: self.new_header_key.clone(),
-                                                value: self.new_header_val.clone(),
-                                                active: true,
-                                            });
-                                            self.new_header_key.clear();
-                                            self.new_header_val.clear();
-                                        }
-                                    }
-                                });
-                            }
-                            RequestTab::Body => {
-                                ui.horizontal(|ui| {
-                                    ui.label(egui::RichText::new("Raw JSON / Text Body").strong().color(theme::COLOR_TEXT_MUTED));
-                                });
-                                ui.add_space(4.0);
-                                ui.add(
-                                    egui::TextEdit::multiline(&mut self.active_request.body)
-                                        .font(egui::TextStyle::Monospace)
-                                        .desired_width(ui.available_width() - 8.0)
-                                        .desired_rows(6)
-                                        .hint_text(r#"{"key": "value"}"#)
-                                );
-                            }
-                            RequestTab::GraphQL => {
-                                ui.horizontal(|ui| {
-                                    ui.label(egui::RichText::new("GraphQL Query").strong().color(theme::COLOR_TEXT_MUTED));
-                                });
-                                ui.add_space(4.0);
-                                ui.add(
-                                    egui::TextEdit::multiline(&mut self.active_request.graphql_query)
-                                        .font(egui::TextStyle::Monospace)
-                                        .desired_width(ui.available_width() - 8.0)
-                                        .desired_rows(6)
-                                        .hint_text("query GetUsers {\n  users {\n    id\n    name\n  }\n}")
-                                );
-                                ui.add_space(6.0);
-                                ui.horizontal(|ui| {
-                                    ui.label(egui::RichText::new("Variables (JSON)").strong().color(theme::COLOR_TEXT_MUTED));
-                                });
-                                ui.add_space(4.0);
-                                ui.add(
-                                    egui::TextEdit::multiline(&mut self.active_request.graphql_variables)
-                                        .font(egui::TextStyle::Monospace)
-                                        .desired_width(ui.available_width() - 8.0)
-                                        .desired_rows(4)
-                                        .hint_text(r#"{"id": 1}"#)
-                                );
-                            }
-                            RequestTab::Params => {
-                                ui.label(egui::RichText::new("Interactive Query Parameters").strong().color(theme::COLOR_TEXT_MUTED));
-                                ui.add_space(4.0);
-                                
-                                let mut to_remove = None;
-                                let mut params_changed = false;
-                                
-                                for (idx, p) in self.active_request.params.iter_mut().enumerate() {
-                                    ui.horizontal(|ui| {
-                                        if ui.checkbox(&mut p.active, "").changed() {
-                                            params_changed = true;
-                                        }
-                                        if ui.text_edit_singleline(&mut p.key).changed() {
-                                            params_changed = true;
-                                        }
-                                        ui.label("=");
-                                        if ui.text_edit_singleline(&mut p.value).changed() {
-                                            params_changed = true;
-                                        }
-                                        if ui.button("❌").clicked() {
-                                            to_remove = Some(idx);
-                                            params_changed = true;
-                                        }
-                                    });
-                                }
-                                
-                                if let Some(idx) = to_remove {
-                                    self.active_request.params.remove(idx);
-                                }
-                                
-                                ui.add_space(4.0);
-                                ui.horizontal(|ui| {
-                                    ui.text_edit_singleline(&mut self.new_param_key);
-                                    ui.label("=");
-                                    ui.text_edit_singleline(&mut self.new_param_val);
-                                    if ui.button("➕ Add Parameter").clicked() {
-                                        if !self.new_param_key.is_empty() {
-                                            self.active_request.params.push(KeyValue {
-                                                key: self.new_param_key.clone(),
-                                                value: self.new_param_val.clone(),
-                                                active: true,
-                                            });
-                                            self.new_param_key.clear();
-                                            self.new_param_val.clear();
-                                            params_changed = true;
-                                        }
-                                    }
-                                });
-                                
-                                // Bidirectional Sync Part 2: Params grid changed by user -> Rebuild URL
-                                if params_changed {
-                                    self.active_request.url = rebuild_url_with_params(&self.active_request.url, &self.active_request.params);
-                                    self.last_synced_url = self.active_request.url.clone();
-                                }
-                            }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.small_button("+ Env").clicked() {
+                            let new_env = Environment {
+                                id: Uuid::new_v4().to_string(),
+                                name: "New Environment".to_string(),
+                                variables: vec![],
+                            };
+                            let _ = self.env_storage.save_environment(&new_env);
+                            self.environments.push(new_env);
+                            self.active_panel = ActivePanel::Environment(self.environments.len() - 1);
                         }
                     });
                 });
+                ui.add_space(6.0);
 
-            ui.add_space(12.0);
-
-            // Response Box Header
-            ui.horizontal(|ui| {
-                ui.heading("Response");
-                
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("📋 Copy cURL").clicked() {
-                        let curl_str = self.get_curl_string();
-                        ctx.output_mut(|o| o.copied_text = curl_str);
-                    }
-                });
-            });
-            ui.add_space(6.0);
-
-            // Render Response Box
-            egui::Frame::none()
-                .fill(theme::COLOR_BG_MAIN)
-                .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
-                .inner_margin(12.0)
-                .rounding(8.0)
-                .show(ui, |ui| {
-                    ui.set_height(ui.available_height() - 8.0);
+                egui::ScrollArea::vertical().id_source("environments_scroll").show(ui, |ui| {
+                    let mut env_to_delete_idx = None;
                     
-                    if self.is_loading {
-                        ui.vertical_centered(|ui| {
-                            ui.add_space(40.0);
-                            ui.add(egui::Spinner::new().size(32.0));
-                            ui.add_space(10.0);
-                            ui.label(
-                                egui::RichText::new("Sending Request...")
-                                    .color(theme::COLOR_TEXT_MUTED)
-                                    .size(15.0)
-                            );
-                        });
-                    } else if let Some(ref response_result) = self.last_response {
-                        match response_result {
-                            Ok(res) => {
-                                ui.horizontal(|ui| {
-                                    let status_color = if res.status >= 200 && res.status < 300 {
-                                        theme::COLOR_GET
-                                    } else {
-                                        theme::COLOR_DELETE
-                                    };
-
-                                    egui::Frame::none()
-                                        .fill(status_color.linear_multiply(0.15))
-                                        .stroke(egui::Stroke::new(1.0, status_color))
-                                        .rounding(4.0)
-                                        .inner_margin(egui::vec2(6.0, 3.0))
-                                        .show(ui, |ui| {
-                                            ui.label(
-                                                egui::RichText::new(format!("{} {}", res.status, res.status_text))
-                                                    .color(status_color)
-                                                    .strong()
-                                            );
-                                        });
-
-                                    ui.add_space(10.0);
-                                    ui.label(egui::RichText::new(format!("Time: {} ms", res.elapsed_ms)).color(theme::COLOR_TEXT_MUTED));
-                                    
-                                    ui.add_space(10.0);
-                                    let kb_size = res.size_bytes as f32 / 1024.0;
-                                    ui.label(egui::RichText::new(format!("Size: {:.2} KB", kb_size)).color(theme::COLOR_TEXT_MUTED));
-                                });
-
-                                ui.add_space(8.0);
-                                ui.separator();
-                                ui.add_space(8.0);
-
-                                egui::ScrollArea::both().show(ui, |ui| {
-                                    if res.content_type.starts_with("image/") {
-                                        ctx.include_bytes("bytes://response_image", res.body_bytes.clone());
-                                        ui.horizontal(|ui| {
-                                            ui.label(egui::RichText::new("Response Image").strong().color(theme::COLOR_PRIMARY));
-                                        });
-                                        ui.add_space(4.0);
-                                        ui.vertical_centered(|ui| {
-                                            ui.add(
-                                                egui::Image::new("bytes://response_image")
-                                                    .max_width(ui.available_width() - 24.0)
-                                                    .max_height(350.0)
-                                                    .rounding(egui::Rounding::same(6.0))
-                                            );
-                                        });
-                                    } else {
-                                        ui.horizontal(|ui| {
-                                            ui.label(egui::RichText::new("Response Body").strong().color(theme::COLOR_PRIMARY));
-                                        });
-                                        ui.add_space(4.0);
-                                        
-                                        ui.add(
-                                            egui::Label::new(
-                                                egui::RichText::new(&res.body)
-                                                    .font(egui::FontId::monospace(13.0))
-                                            )
-                                            .selectable(true)
-                                            .wrap(false)
-                                        );
-                                    }
-                                });
-                            }
-                            Err(err) => {
-                                ui.vertical_centered(|ui| {
-                                    ui.add_space(20.0);
-                                    ui.label(
-                                        egui::RichText::new(format!("⚠️ Connection Error\n{}", err))
-                                            .color(theme::COLOR_DELETE)
-                                            .size(14.0)
-                                    );
-                                });
-                            }
-                        }
-                    } else {
-                        // Empty State Welcome dashboard with stunning linear gradients
-                        ui.vertical_centered(|ui| {
-                            ui.add_space(20.0);
+                    for (env_idx, env) in self.environments.iter().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.add_space(8.0);
+                            let is_editing = match self.active_panel {
+                                ActivePanel::Environment(idx) => idx == env_idx,
+                                _ => false,
+                            };
                             
-                            egui::Frame::none()
+                            if ui.selectable_label(is_editing, format!("⚙ {}", env.name)).clicked() {
+                                self.active_panel = ActivePanel::Environment(env_idx);
+                            }
+                            
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.small_button("❌").clicked() {
+                                    env_to_delete_idx = Some(env_idx);
+                                }
+                            });
+                        });
+                        ui.add_space(4.0);
+                    }
+
+                    if let Some(idx) = env_to_delete_idx {
+                        let _ = self.env_storage.delete_environment(&self.environments[idx].id);
+                        self.environments.remove(idx);
+                        self.active_panel = ActivePanel::Request;
+                        self.active_env_idx = None;
+                    }
+                });
+            });
+
+        // 3. Render Central Workspace depending on active switches (Requests vs. Environments Editor)
+        egui::CentralPanel::default().show(ctx, |ui| {
+            match self.active_panel {
+                ActivePanel::Environment(env_idx) => {
+                    ui.add_space(8.0);
+                    if let Some(env) = self.environments.get_mut(env_idx) {
+                        ui.horizontal(|ui| {
+                            ui.heading("Environment Variables");
+                            ui.text_edit_singleline(&mut env.name);
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.button("💾 Save variables").clicked() {
+                                    let _ = self.env_storage.save_environment(env);
+                                }
+                            });
+                        });
+                        ui.add_space(10.0);
+                        ui.separator();
+                        ui.add_space(12.0);
+
+                        ui.label(egui::RichText::new("Configure active key-value profile variables below:").color(theme::COLOR_TEXT_MUTED));
+                        ui.add_space(6.0);
+
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            let mut to_remove = None;
+                            for (var_idx, var) in env.variables.iter_mut().enumerate() {
+                                ui.horizontal(|ui| {
+                                    ui.checkbox(&mut var.active, "");
+                                    ui.text_edit_singleline(&mut var.key);
+                                    ui.label(":");
+                                    ui.text_edit_singleline(&mut var.value);
+                                    if ui.button("❌").clicked() {
+                                        to_remove = Some(var_idx);
+                                    }
+                                });
+                            }
+
+                            if let Some(idx) = to_remove {
+                                env.variables.remove(idx);
+                            }
+
+                            ui.add_space(8.0);
+                            ui.horizontal(|ui| {
+                                ui.text_edit_singleline(&mut self.new_env_var_key);
+                                ui.label(":");
+                                ui.text_edit_singleline(&mut self.new_env_var_val);
+                                if ui.button("➕ Add variable").clicked() {
+                                    if !self.new_env_var_key.is_empty() {
+                                        env.variables.push(KeyValue {
+                                            key: self.new_env_var_key.clone(),
+                                            value: self.new_env_var_val.clone(),
+                                            active: true,
+                                        });
+                                        self.new_env_var_key.clear();
+                                        self.new_env_var_val.clear();
+                                    }
+                                }
+                            });
+                        });
+                    }
+                }
+                ActivePanel::Request => {
+                    ui.add_space(8.0);
+
+                    // Workspace Header: Name and Save
+                    ui.horizontal(|ui| {
+                        ui.text_edit_singleline(&mut self.active_request.name);
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let save_btn = ui.add(
+                                egui::Button::new(
+                                    egui::RichText::new("💾 Save Request")
+                                        .color(theme::COLOR_TEXT_ACTIVE)
+                                        .strong()
+                                )
                                 .fill(theme::COLOR_BG_SIDEBAR)
                                 .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
-                                .rounding(egui::Rounding::same(8.0))
-                                .inner_margin(24.0)
-                                .show(ui, |ui| {
-                                    ui.set_width(450.0);
-                                    ui.vertical_centered(|ui| {
-                                        ui.label(
-                                            egui::RichText::new("✦ AeroClient")
-                                                .color(theme::COLOR_PRIMARY)
-                                                .size(24.0)
-                                                .strong()
-                                        );
-                                        ui.add_space(4.0);
-                                        ui.label(
-                                            egui::RichText::new("The high-performance, lightweight API companion")
-                                                .color(theme::COLOR_TEXT_MUTED)
-                                                .size(12.0)
-                                        );
-                                        ui.add_space(16.0);
-                                        ui.separator();
-                                        ui.add_space(16.0);
-                                    });
+                            );
+                            if save_btn.clicked() {
+                                if !self.collections.is_empty() {
+                                    let col = &mut self.collections[self.selected_col_idx];
+                                    
+                                    fn update_nested_item(items: &mut [CollectionItem], target: &SavedRequest) -> bool {
+                                        for item in items.iter_mut() {
+                                            match item {
+                                                CollectionItem::Request(req) => {
+                                                    if req.id == target.id {
+                                                        *req = target.clone();
+                                                        return true;
+                                                    }
+                                                }
+                                                CollectionItem::Folder(folder) => {
+                                                    if update_nested_item(&mut folder.items, target) {
+                                                        return true;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        false
+                                    }
 
-                                    ui.vertical(|ui| {
-                                        ui.spacing_mut().item_spacing.y = 8.0;
-                                        
-                                        ui.horizontal(|ui| {
-                                            ui.label(egui::RichText::new("🚀 REST Engine").color(theme::COLOR_GET).strong());
-                                            ui.label("- Full HTTP methods support with live status tags.");
-                                        });
-                                        
-                                        ui.horizontal(|ui| {
-                                            ui.label(egui::RichText::new("🌌 GraphQL IDE").color(theme::COLOR_PATCH).strong());
-                                            ui.label("- Separate query and variable boxes auto-packed.");
-                                        });
-
-                                        ui.horizontal(|ui| {
-                                            ui.label(egui::RichText::new("🖼️ Image Viewer").color(theme::COLOR_PUT).strong());
-                                            ui.label("- Autodetect image streams and draw on screen.");
-                                        });
-
-                                        ui.horizontal(|ui| {
-                                            ui.label(egui::RichText::new("⚡ Git-Friendly").color(theme::COLOR_POST).strong());
-                                            ui.label("- Local JSON collections saved inside ./collections.");
-                                        });
-                                    });
-
-                                    ui.add_space(16.0);
-                                    ui.separator();
-                                    ui.add_space(12.0);
-                                    ui.vertical_centered(|ui| {
-                                        ui.label(
-                                            egui::RichText::new("Select a saved request from the sidebar or click '✚ New Request' to start!")
-                                                .color(theme::COLOR_TEXT_ACTIVE)
-                                                .strong()
-                                                .size(11.0)
-                                        );
-                                    });
-                                });
+                                    let target_saved = self.active_request.to_saved();
+                                    if !update_nested_item(&mut col.items, &target_saved) {
+                                        col.items.push(CollectionItem::Request(target_saved));
+                                    }
+                                    let _ = self.storage.save_collection(col);
+                                }
+                            }
                         });
-                    }
-                });
+                    });
+                    ui.add_space(10.0);
+
+                    // Row 1: Method + URL Bar + Send Button
+                    ui.horizontal(|ui| {
+                        egui::ComboBox::from_id_source("method_combo")
+                            .selected_text(
+                                egui::RichText::new(&self.active_request.method)
+                                    .color(theme::get_method_color(&self.active_request.method))
+                                    .strong()
+                            )
+                            .width(100.0)
+                            .show_ui(ui, |ui| {
+                                for m in &["GET", "POST", "PUT", "DELETE", "PATCH"] {
+                                    ui.selectable_value(
+                                        &mut self.active_request.method,
+                                        m.to_string(),
+                                        egui::RichText::new(*m).color(theme::get_method_color(m)).strong()
+                                    );
+                                }
+                            });
+
+                        // URL Text Edit
+                        let url_field = ui.add(
+                            egui::TextEdit::singleline(&mut self.active_request.url)
+                                .hint_text("Enter Request URL (e.g. {{base_url}}/users)")
+                                .desired_width(ui.available_width() - 110.0)
+                        );
+
+                        // Send Button with Indigo-to-Purple linear gradient background
+                        if self.is_loading {
+                            ui.add(egui::Spinner::new());
+                        } else {
+                            let send_btn = theme::draw_gradient_button(
+                                ui, 
+                                "Send ➤", 
+                                theme::COLOR_PRIMARY, 
+                                theme::COLOR_PATCH
+                            );
+                            
+                            if send_btn.clicked() || (url_field.lost_focus() && ctx.input(|i| i.key_pressed(egui::Key::Enter))) {
+                                let mut final_headers = self.active_request.headers.clone();
+                                let final_method = if self.active_request.active_tab == RequestTab::GraphQL {
+                                    "POST".to_string()
+                                } else {
+                                    self.active_request.method.clone()
+                                };
+
+                                let final_body = if self.active_request.active_tab == RequestTab::GraphQL {
+                                    if !final_headers.iter().any(|h| h.key.to_lowercase() == "content-type") {
+                                        final_headers.push(KeyValue {
+                                            key: "Content-Type".to_string(),
+                                            value: "application/json".to_string(),
+                                            active: true,
+                                        });
+                                    }
+                                    let vars_json = serde_json::from_str::<serde_json::Value>(&self.active_request.graphql_variables)
+                                        .unwrap_or(serde_json::json!({}));
+                                    serde_json::json!({
+                                        "query": self.active_request.graphql_query,
+                                        "variables": vars_json
+                                    }).to_string()
+                                } else {
+                                    self.active_request.body.clone()
+                                };
+
+                                // Get active environment variables profile for double brace substitution
+                                let active_env = self.active_env_idx.and_then(|idx| self.environments.get(idx).cloned());
+                                
+                                // Perform variables substitutions
+                                let substituted_url = substitute_variables(&self.active_request.url, &active_env);
+                                let substituted_body = substitute_variables(&final_body, &active_env);
+                                
+                                let mut substituted_headers = Vec::new();
+                                for h in final_headers {
+                                    substituted_headers.push(KeyValue {
+                                        key: h.key.clone(),
+                                        value: substitute_variables(&h.value, &active_env),
+                                        active: h.active,
+                                    });
+                                }
+
+                                let http_req = HttpRequest {
+                                    id: self.active_request.id.clone(),
+                                    method: final_method,
+                                    url: substituted_url,
+                                    headers: substituted_headers,
+                                    body: substituted_body,
+                                };
+                                self.active_rx = Some(self.client.send(http_req));
+                                self.is_loading = true;
+                            }
+                        }
+                    });
+
+                    ui.add_space(12.0);
+
+                    let height = ui.available_height();
+                    
+                    // Tab Selector for Request Builder
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 6.0;
+                        for (tab, name) in &[
+                            (RequestTab::Headers, "Headers"),
+                            (RequestTab::Body, "Body"),
+                            (RequestTab::GraphQL, "GraphQL"),
+                            (RequestTab::Params, "Params"),
+                        ] {
+                            let is_selected = self.active_request.active_tab == *tab;
+                            let text_color = if is_selected {
+                                theme::COLOR_PRIMARY
+                            } else {
+                                theme::COLOR_TEXT_MUTED
+                            };
+                            
+                            let tab_btn = ui.add(
+                                egui::Button::new(
+                                    egui::RichText::new(*name)
+                                        .color(text_color)
+                                        .strong()
+                                        .size(13.0)
+                                )
+                                .fill(if is_selected { theme::COLOR_BG_INPUT } else { egui::Color32::TRANSPARENT })
+                                .stroke(egui::Stroke::new(1.0, if is_selected { theme::COLOR_BORDER } else { egui::Color32::TRANSPARENT }))
+                            );
+                            if tab_btn.clicked() {
+                                self.active_request.active_tab = match tab {
+                                    RequestTab::Headers => RequestTab::Headers,
+                                    RequestTab::Body => RequestTab::Body,
+                                    RequestTab::GraphQL => RequestTab::GraphQL,
+                                    RequestTab::Params => RequestTab::Params,
+                                };
+                            }
+                        }
+                    });
+                    ui.add_space(4.0);
+
+                    // Render Request Tab body
+                    egui::Frame::none()
+                        .fill(theme::COLOR_BG_INPUT)
+                        .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
+                        .inner_margin(8.0)
+                        .rounding(6.0)
+                        .show(ui, |ui| {
+                            ui.set_height(height * 0.35); // Take 35% of space
+                            egui::ScrollArea::vertical().show(ui, |ui| {
+                                match self.active_request.active_tab {
+                                    RequestTab::Headers => {
+                                        ui.label(egui::RichText::new("HTTP Headers").strong().color(theme::COLOR_TEXT_MUTED));
+                                        ui.add_space(4.0);
+                                        
+                                        let mut to_remove = None;
+                                        for (idx, h) in self.active_request.headers.iter_mut().enumerate() {
+                                            ui.horizontal(|ui| {
+                                                ui.checkbox(&mut h.active, "");
+                                                ui.text_edit_singleline(&mut h.key);
+                                                ui.label(":");
+                                                ui.text_edit_singleline(&mut h.value);
+                                                if ui.button("❌").clicked() {
+                                                    to_remove = Some(idx);
+                                                }
+                                            });
+                                        }
+                                        if let Some(idx) = to_remove {
+                                            self.active_request.headers.remove(idx);
+                                        }
+
+                                        ui.add_space(4.0);
+                                        ui.horizontal(|ui| {
+                                            ui.text_edit_singleline(&mut self.new_header_key).highlight();
+                                            ui.label(":");
+                                            ui.text_edit_singleline(&mut self.new_header_val);
+                                            if ui.button("➕ Add Header").clicked() {
+                                                if !self.new_header_key.is_empty() {
+                                                    self.active_request.headers.push(KeyValue {
+                                                        key: self.new_header_key.clone(),
+                                                        value: self.new_header_val.clone(),
+                                                        active: true,
+                                                    });
+                                                    self.new_header_key.clear();
+                                                    self.new_header_val.clear();
+                                                }
+                                            }
+                                        });
+                                    }
+                                    RequestTab::Body => {
+                                        ui.horizontal(|ui| {
+                                            ui.label(egui::RichText::new("Raw JSON / Text Body").strong().color(theme::COLOR_TEXT_MUTED));
+                                        });
+                                        ui.add_space(4.0);
+                                        ui.add(
+                                            egui::TextEdit::multiline(&mut self.active_request.body)
+                                                .font(egui::TextStyle::Monospace)
+                                                .desired_width(ui.available_width() - 8.0)
+                                                .desired_rows(6)
+                                                .hint_text(r#"{"key": "value"}"#)
+                                        );
+                                    }
+                                    RequestTab::GraphQL => {
+                                        ui.horizontal(|ui| {
+                                            ui.label(egui::RichText::new("GraphQL Query").strong().color(theme::COLOR_TEXT_MUTED));
+                                        });
+                                        ui.add_space(4.0);
+                                        ui.add(
+                                            egui::TextEdit::multiline(&mut self.active_request.graphql_query)
+                                                .font(egui::TextStyle::Monospace)
+                                                .desired_width(ui.available_width() - 8.0)
+                                                .desired_rows(6)
+                                                .hint_text("query GetUsers {\n  users {\n    id\n    name\n  }\n}")
+                                        );
+                                        ui.add_space(6.0);
+                                        ui.horizontal(|ui| {
+                                            ui.label(egui::RichText::new("Variables (JSON)").strong().color(theme::COLOR_TEXT_MUTED));
+                                        });
+                                        ui.add_space(4.0);
+                                        ui.add(
+                                            egui::TextEdit::multiline(&mut self.active_request.graphql_variables)
+                                                .font(egui::TextStyle::Monospace)
+                                                .desired_width(ui.available_width() - 8.0)
+                                                .desired_rows(4)
+                                                .hint_text(r#"{"id": 1}"#)
+                                        );
+                                    }
+                                    RequestTab::Params => {
+                                        ui.label(egui::RichText::new("Interactive Query Parameters").strong().color(theme::COLOR_TEXT_MUTED));
+                                        ui.add_space(4.0);
+                                        
+                                        let mut to_remove = None;
+                                        let mut params_changed = false;
+                                        
+                                        for (idx, p) in self.active_request.params.iter_mut().enumerate() {
+                                            ui.horizontal(|ui| {
+                                                if ui.checkbox(&mut p.active, "").changed() {
+                                                    params_changed = true;
+                                                }
+                                                if ui.text_edit_singleline(&mut p.key).changed() {
+                                                    params_changed = true;
+                                                }
+                                                ui.label("=");
+                                                if ui.text_edit_singleline(&mut p.value).changed() {
+                                                    params_changed = true;
+                                                }
+                                                if ui.button("❌").clicked() {
+                                                    to_remove = Some(idx);
+                                                    params_changed = true;
+                                                }
+                                            });
+                                        }
+                                        
+                                        if let Some(idx) = to_remove {
+                                            self.active_request.params.remove(idx);
+                                        }
+                                        
+                                        ui.add_space(4.0);
+                                        ui.horizontal(|ui| {
+                                            ui.text_edit_singleline(&mut self.new_param_key);
+                                            ui.label("=");
+                                            ui.text_edit_singleline(&mut self.new_param_val);
+                                            if ui.button("➕ Add Parameter").clicked() {
+                                                if !self.new_param_key.is_empty() {
+                                                    self.active_request.params.push(KeyValue {
+                                                        key: self.new_param_key.clone(),
+                                                        value: self.new_param_val.clone(),
+                                                        active: true,
+                                                    });
+                                                    self.new_param_key.clear();
+                                                    self.new_param_val.clear();
+                                                    params_changed = true;
+                                                }
+                                            }
+                                        });
+                                        
+                                        if params_changed {
+                                            self.active_request.url = rebuild_url_with_params(&self.active_request.url, &self.active_request.params);
+                                            self.last_synced_url = self.active_request.url.clone();
+                                        }
+                                    }
+                                }
+                            });
+                        });
+
+                    ui.add_space(12.0);
+
+                    // Response Box Header
+                    ui.horizontal(|ui| {
+                        ui.heading("Response");
+                        
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.button("📋 Copy cURL").clicked() {
+                                let curl_str = self.get_curl_string();
+                                ctx.output_mut(|o| o.copied_text = curl_str);
+                            }
+                        });
+                    });
+                    ui.add_space(6.0);
+
+                    // Render Response Box
+                    egui::Frame::none()
+                        .fill(theme::COLOR_BG_MAIN)
+                        .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
+                        .inner_margin(12.0)
+                        .rounding(8.0)
+                        .show(ui, |ui| {
+                            ui.set_height(ui.available_height() - 8.0);
+                            
+                            if self.is_loading {
+                                ui.vertical_centered(|ui| {
+                                    ui.add_space(40.0);
+                                    ui.add(egui::Spinner::new().size(32.0));
+                                    ui.add_space(10.0);
+                                    ui.label(
+                                        egui::RichText::new("Sending Request...")
+                                            .color(theme::COLOR_TEXT_MUTED)
+                                            .size(15.0)
+                                    );
+                                });
+                            } else if let Some(ref response_result) = self.last_response {
+                                match response_result {
+                                    Ok(res) => {
+                                        ui.horizontal(|ui| {
+                                            let status_color = if res.status >= 200 && res.status < 300 {
+                                                theme::COLOR_GET
+                                            } else {
+                                                theme::COLOR_DELETE
+                                            };
+
+                                            egui::Frame::none()
+                                                .fill(status_color.linear_multiply(0.15))
+                                                .stroke(egui::Stroke::new(1.0, status_color))
+                                                .rounding(4.0)
+                                                .inner_margin(egui::vec2(6.0, 3.0))
+                                                .show(ui, |ui| {
+                                                    ui.label(
+                                                        egui::RichText::new(format!("{} {}", res.status, res.status_text))
+                                                            .color(status_color)
+                                                            .strong()
+                                                    );
+                                                });
+
+                                            ui.add_space(10.0);
+                                            ui.label(egui::RichText::new(format!("Time: {} ms", res.elapsed_ms)).color(theme::COLOR_TEXT_MUTED));
+                                            
+                                            ui.add_space(10.0);
+                                            let kb_size = res.size_bytes as f32 / 1024.0;
+                                            ui.label(egui::RichText::new(format!("Size: {:.2} KB", kb_size)).color(theme::COLOR_TEXT_MUTED));
+                                        });
+
+                                        ui.add_space(8.0);
+                                        ui.separator();
+                                        ui.add_space(8.0);
+
+                                        egui::ScrollArea::both().show(ui, |ui| {
+                                            if res.content_type.starts_with("image/") {
+                                                ctx.include_bytes("bytes://response_image", res.body_bytes.clone());
+                                                ui.horizontal(|ui| {
+                                                    ui.label(egui::RichText::new("Response Image").strong().color(theme::COLOR_PRIMARY));
+                                                });
+                                                ui.add_space(4.0);
+                                                ui.vertical_centered(|ui| {
+                                                    ui.add(
+                                                        egui::Image::new("bytes://response_image")
+                                                            .max_width(ui.available_width() - 24.0)
+                                                            .max_height(350.0)
+                                                            .rounding(egui::Rounding::same(6.0))
+                                                    );
+                                                });
+                                            } else {
+                                                ui.horizontal(|ui| {
+                                                    ui.label(egui::RichText::new("Response Body").strong().color(theme::COLOR_PRIMARY));
+                                                });
+                                                ui.add_space(4.0);
+                                                
+                                                ui.add(
+                                                    egui::Label::new(
+                                                        egui::RichText::new(&res.body)
+                                                            .font(egui::FontId::monospace(13.0))
+                                                    )
+                                                    .selectable(true)
+                                                    .wrap(false)
+                                                );
+                                    }
+                                        });
+                                    }
+                                    Err(err) => {
+                                        ui.vertical_centered(|ui| {
+                                            ui.add_space(20.0);
+                                            ui.label(
+                                                egui::RichText::new(format!("⚠️ Connection Error\n{}", err))
+                                                    .color(theme::COLOR_DELETE)
+                                                    .size(14.0)
+                                            );
+                                        });
+                                    }
+                                }
+                            } else {
+                                // Welcome Dashboard
+                                ui.vertical_centered(|ui| {
+                                    ui.add_space(20.0);
+                                    
+                                    egui::Frame::none()
+                                        .fill(theme::COLOR_BG_SIDEBAR)
+                                        .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
+                                        .rounding(egui::Rounding::same(8.0))
+                                        .inner_margin(24.0)
+                                        .show(ui, |ui| {
+                                            ui.set_width(450.0);
+                                            ui.vertical_centered(|ui| {
+                                                ui.label(
+                                                    egui::RichText::new("✦ AeroClient")
+                                                        .color(theme::COLOR_PRIMARY)
+                                                        .size(24.0)
+                                                        .strong()
+                                                );
+                                                ui.add_space(4.0);
+                                                ui.label(
+                                                    egui::RichText::new("The high-performance, lightweight API companion")
+                                                        .color(theme::COLOR_TEXT_MUTED)
+                                                        .size(12.0)
+                                                );
+                                                ui.add_space(16.0);
+                                                ui.separator();
+                                                ui.add_space(16.0);
+                                            });
+
+                                            ui.vertical(|ui| {
+                                                ui.spacing_mut().item_spacing.y = 8.0;
+                                                
+                                                ui.horizontal(|ui| {
+                                                    ui.label(egui::RichText::new("🚀 REST Engine").color(theme::COLOR_GET).strong());
+                                                    ui.label("- Full HTTP methods support with live status tags.");
+                                                });
+                                                
+                                                ui.horizontal(|ui| {
+                                                    ui.label(egui::RichText::new("🌌 GraphQL IDE").color(theme::COLOR_PATCH).strong());
+                                                    ui.label("- Separate query and variable boxes auto-packed.");
+                                                });
+
+                                                ui.horizontal(|ui| {
+                                                    ui.label(egui::RichText::new("🖼️ Image Viewer").color(theme::COLOR_PUT).strong());
+                                                    ui.label("- Autodetect image streams and draw on screen.");
+                                                });
+
+                                                ui.horizontal(|ui| {
+                                                    ui.label(egui::RichText::new("⚡ Git-Friendly").color(theme::COLOR_POST).strong());
+                                                    ui.label("- Local JSON collections saved inside ./collections.");
+                                                });
+                                            });
+
+                                            ui.add_space(16.0);
+                                            ui.separator();
+                                            ui.add_space(12.0);
+                                            ui.vertical_centered(|ui| {
+                                                ui.label(
+                                                    egui::RichText::new("Select a saved request from the sidebar or click '✚ New Request' to start!")
+                                                        .color(theme::COLOR_TEXT_ACTIVE)
+                                                        .strong()
+                                                        .size(11.0)
+                                                );
+                                            });
+                                        });
+                                });
+                            }
+                        });
+                }
+            }
         });
     }
 }

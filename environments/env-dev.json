@@ -1,0 +1,16 @@
+{
+  "id": "env-dev",
+  "name": "Development",
+  "variables": [
+    {
+      "key": "base_url",
+      "value": "https://jsonplaceholder.typicode.com",
+      "active": true
+    },
+    {
+      "key": "api_token",
+      "value": "dev_token_xyz",
+      "active": true
+    }
+  ]
+}

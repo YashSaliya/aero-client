@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>API Client - Builder</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&amp;family=Hanken+Grotesk:wght@400;500&amp;family=JetBrains+Mono:wght@450;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    .glass-morphism {
+      backdrop-filter: blur(40px);
+      background: rgba(15, 23, 42, 0.7);
+      border: 0.5px solid rgba(255, 255, 255, 0.1);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0b1326;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #494454;
+      border-radius: 10px;
+    }
+    .status-200 { color: #4edea3; }
+    .syntax-key { color: #d0bcff; }
+    .syntax-string { color: #4edea3; }
+    .syntax-number { color: #ffb95f; }
+
+    /* Animations & Interactivity */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .shimmer-btn {
+      background: linear-gradient(90deg, #a078ff, #d0bcff, #a078ff);
+      background-size: 200% 100%;
+      animation: shimmer 3s infinite linear;
+      transition: box-shadow 0.3s ease;
+    }
+    .shimmer-btn:hover {
+      box-shadow: 0 0 20px rgba(208, 188, 255, 0.4);
+    }
+
+    @keyframes slideUpFade {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-entrance {
+      animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes ambientPulse {
+      0%, 100% { opacity: 1; filter: drop-shadow(0 0 0px rgba(208, 188, 255, 0)); }
+      50% { opacity: 0.85; filter: drop-shadow(0 0 8px rgba(208, 188, 255, 0.3)); }
+    }
+    .logo-pulse {
+      animation: ambientPulse 4s ease-in-out infinite;
+    }
+
+    .tab-content-wrapper {
+      position: relative;
+      overflow: hidden;
+    }
+    .tab-pane {
+      transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .tab-pane.hidden {
+      display: none;
+      opacity: 0;
+      transform: translateX(10px);
+    }
+    .tab-pane.active {
+      display: block;
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .icon-pulse:active {
+      transform: scale(0.9);
+      transition: transform 0.1s;
+    }
+    .icon-pulse:hover span {
+      animation: gentle-pulse 1.5s infinite;
+    }
+    @keyframes gentle-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .shimmer-btn, .animate-entrance, .logo-pulse, .tab-pane, .icon-pulse:hover span {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+      }
+    }
+  </style>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-bright": "#31394d",
+            "error": "#ffb4ab",
+            "surface-variant": "#2d3449",
+            "on-primary": "#3c0091",
+            "on-error-container": "#ffdad6",
+            "outline-variant": "#494454",
+            "error-container": "#93000a",
+            "inverse-on-surface": "#283044",
+            "primary-container": "#a078ff",
+            "tertiary": "#ffb95f",
+            "secondary": "#4edea3",
+            "background": "#0b1326",
+            "secondary-container": "#00a572",
+            "inverse-surface": "#dae2fd",
+            "tertiary-fixed": "#ffddb8",
+            "tertiary-fixed-dim": "#ffb95f",
+            "secondary-fixed-dim": "#4edea3",
+            "surface-container-highest": "#2d3449",
+            "on-background": "#dae2fd",
+            "on-tertiary-container": "#3e2400",
+            "on-surface-variant": "#cbc3d7",
+            "surface-container": "#171f33",
+            "on-secondary": "#003824",
+            "on-primary-fixed": "#23005c",
+            "tertiary-container": "#ca8100",
+            "on-primary-container": "#340080",
+            "surface-container-high": "#222a3d",
+            "on-tertiary": "#472a00",
+            "primary-fixed": "#e9ddff",
+            "primary-fixed-dim": "#d0bcff",
+            "on-secondary-fixed": "#002113",
+            "outline": "#958ea0",
+            "on-secondary-fixed-variant": "#005236",
+            "surface-container-low": "#131b2e",
+            "surface-tint": "#d0bcff",
+            "primary": "#d0bcff",
+            "inverse-primary": "#6d3bd7",
+            "surface-dim": "#0b1326",
+            "secondary-fixed": "#6ffbbe",
+            "on-primary-fixed-variant": "#5516be",
+            "surface": "#0b1326",
+            "on-tertiary-fixed-variant": "#653e00",
+            "on-error": "#690005",
+            "on-tertiary-fixed": "#2a1700",
+            "surface-container-lowest": "#060e20",
+            "on-surface": "#dae2fd",
+            "on-secondary-container": "#00311f"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "container-padding": "16px",
+            "unit": "4px",
+            "gutter": "12px",
+            "stack-lg": "24px",
+            "stack-md": "16px",
+            "stack-sm": "8px"
+          },
+          "fontFamily": {
+            "label-caps": ["JetBrains Mono"],
+            "code-block": ["JetBrains Mono"],
+            "body-lg": ["Hanken Grotesk"],
+            "headline-lg": ["Geist"],
+            "headline-md": ["Geist"],
+            "body-sm": ["Hanken Grotesk"],
+            "status-badge": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+            "code-block": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+            "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+            "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "status-badge": ["12px", {"lineHeight": "14px", "fontWeight": "600"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-lg min-h-screen flex flex-col selection:bg-primary-container/30">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-background dark:bg-background border-b border-outline-variant/30 flex justify-between items-center px-container-padding h-14">
+<div class="flex items-center gap-3">
+<button class="text-primary hover:bg-surface-container-high/50 transition-all duration-200 active:opacity-70 p-2 rounded-full icon-pulse">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary logo-pulse">API Client</h1>
+</div>
+<div class="flex items-center gap-2">
+<div class="hidden md:flex items-center bg-surface-container-low px-3 py-1 rounded-full border border-outline-variant/20 mr-4 transition-all hover:border-secondary/40">
+<span class="material-symbols-outlined text-[14px] text-secondary mr-2" data-icon="language">language</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Staging Env</span>
+</div>
+<button class="text-on-surface-variant hover:bg-surface-container-high/50 transition-all duration-200 active:opacity-70 p-2 rounded-full icon-pulse">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</header>
+<main class="flex-grow pt-14 pb-16 flex flex-col md:flex-row overflow-hidden">
+<!-- Sidebar Navigation (Web View) -->
+<aside class="hidden md:flex flex-col w-64 bg-surface-container border-r border-outline-variant/20 py-6 shrink-0 h-full overflow-y-auto">
+<div class="px-4 mb-8">
+<button class="w-full flex items-center justify-center gap-2 shimmer-btn text-on-primary-container font-label-caps text-label-caps py-3 rounded-xl transition-all active:scale-95 shadow-lg shadow-primary/10">
+<span class="material-symbols-outlined text-[18px]" data-icon="add">add</span>
+          New Request
+        </button>
+</div>
+<nav class="flex-grow">
+<div class="px-6 mb-2">
+<span class="font-label-caps text-[10px] text-outline tracking-widest">PERSONAL WORKSPACE</span>
+</div>
+<div class="space-y-1">
+<a class="bg-primary-container/20 text-primary flex items-center gap-3 px-6 py-3 mx-2 rounded-full font-body-lg transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="send" style="font-variation-settings: 'FILL' 1;">send</span>
+            Builder
+          </a>
+<a class="text-on-surface-variant hover:bg-surface-variant/50 transition-colors flex items-center gap-3 px-6 py-3 mx-2 rounded-full font-body-lg" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+            History
+          </a>
+<a class="text-on-surface-variant hover:bg-surface-variant/50 transition-colors flex items-center gap-3 px-6 py-3 mx-2 rounded-full font-body-lg" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+            Collections
+          </a>
+</div>
+</nav>
+<div class="mt-auto px-6 py-4 border-t border-outline-variant/20">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-bright flex items-center justify-center border border-primary/20 overflow-hidden transition-transform hover:scale-110">
+<img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDeAsOZyygBN0BPNnNIUOfD_yIHBrWm-xbsYZrNcdFcVgwf6VR8Q9GU51Qbyrn50TVDbM1XZCj9HT6lPd-uez6Qdht2wZ7nEqeOQJp5Zqh7y1bNsXkp1piM3f8iqSRcYjthBncyKznTSMyPKwtU0onJNvfN2savLt2U8PWljXOBqSdI1iifOCEnoGP2hNwJ31NL9IJ-hZQCrhOuxUzPFXdMRD492278S9tIvqsrap8-EPecL32OTwl0ZVgox77XelNNKiFlEm6T8wE"/>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm font-bold">Developer Alpha</span>
+<span class="text-[10px] text-primary/70 font-label-caps uppercase">Pro Plan</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Content Canvas -->
+<div class="flex-grow flex flex-col h-full overflow-hidden bg-background">
+<!-- Request Builder Section -->
+<section class="flex flex-col p-container-padding gap-gutter border-b border-outline-variant/10">
+<!-- URL Bar -->
+<div class="flex flex-col md:flex-row gap-2">
+<div class="flex flex-grow items-stretch rounded-xl overflow-hidden border border-outline-variant/30 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all duration-300">
+<div class="relative group">
+<select class="appearance-none bg-surface-container-high text-primary font-code-block text-body-sm px-4 h-full border-r border-outline-variant/30 focus:outline-none cursor-pointer hover:bg-surface-bright transition-colors duration-200">
+<option>GET</option>
+<option>POST</option>
+<option>PUT</option>
+<option>DELETE</option>
+<option>PATCH</option>
+</select>
+<span class="material-symbols-outlined absolute right-1 top-1/2 -translate-y-1/2 text-[16px] pointer-events-none text-primary transition-transform group-hover:translate-y-[-40%]" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
+</div>
+<input class="flex-grow bg-surface-container-low px-4 py-3 font-code-block text-body-sm text-on-surface focus:outline-none placeholder-outline" placeholder="Enter request URL" type="text" value="https://api.aeroclient.io/v1/user/workspace"/>
+<button class="shimmer-btn text-on-primary-container px-6 flex items-center justify-center active:opacity-80 transition-all md:flex hidden">
+<span class="material-symbols-outlined mr-2" data-icon="send" style="font-variation-settings: 'FILL' 1;">send</span>
+<span class="font-label-caps text-label-caps">SEND</span>
+</button>
+</div>
+<button class="md:hidden w-full shimmer-btn text-on-primary-container py-3 rounded-xl flex items-center justify-center font-label-caps text-label-caps shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+<span class="material-symbols-outlined mr-2" data-icon="send" style="font-variation-settings: 'FILL' 1;">send</span>
+            SEND REQUEST
+          </button>
+</div>
+<!-- Builder Tabs -->
+<div class="flex items-center gap-6 border-b border-outline-variant/20 px-1 overflow-x-auto custom-scrollbar" id="tabs-container">
+<button class="tab-trigger py-2 border-b-2 border-primary text-primary font-label-caps text-label-caps transition-all" data-tab="params">PARAMS</button>
+<button class="tab-trigger py-2 border-b-2 border-transparent text-on-surface-variant font-label-caps text-label-caps hover:text-on-surface transition-all" data-tab="auth">AUTH</button>
+<button class="tab-trigger py-2 border-b-2 border-transparent text-on-surface-variant font-label-caps text-label-caps hover:text-on-surface transition-all" data-tab="headers">HEADERS <span class="ml-1 bg-surface-variant px-1.5 rounded text-[10px]">3</span></button>
+<button class="tab-trigger py-2 border-b-2 border-transparent text-on-surface-variant font-label-caps text-label-caps hover:text-on-surface transition-all" data-tab="body">BODY</button>
+</div>
+<!-- Params Table (Condensed) -->
+<div class="tab-content-wrapper">
+<div class="tab-pane active" id="tab-params">
+<div class="flex flex-col gap-2 mt-2">
+<div class="flex items-center justify-between">
+<span class="text-body-sm font-semibold text-outline">Query Parameters</span>
+<button class="text-secondary text-[12px] font-label-caps flex items-center gap-1 hover:underline icon-pulse">
+<span class="material-symbols-outlined text-[14px]" data-icon="add_circle">add_circle</span> Bulk Edit
+            </button>
+</div>
+<div class="space-y-1">
+<div class="grid grid-cols-[1fr_1fr_40px] gap-1">
+<input class="bg-surface-container border border-outline-variant/20 rounded px-3 py-2 font-code-block text-body-sm focus:border-primary outline-none transition-colors" type="text" value="workspace_id"/>
+<input class="bg-surface-container border border-outline-variant/20 rounded px-3 py-2 font-code-block text-body-sm focus:border-primary outline-none transition-colors" type="text" value="ws_982310"/>
+<button class="flex items-center justify-center text-outline-variant hover:text-error transition-colors icon-pulse"><span class="material-symbols-outlined" data-icon="close">close</span></button>
+</div>
+<div class="grid grid-cols-[1fr_1fr_40px] gap-1 opacity-60 hover:opacity-100 transition-opacity">
+<input class="bg-surface-container-low border border-dashed border-outline-variant/40 rounded px-3 py-2 font-code-block text-body-sm outline-none" placeholder="Key" type="text"/>
+<input class="bg-surface-container-low border border-dashed border-outline-variant/40 rounded px-3 py-2 font-code-block text-body-sm outline-none" placeholder="Value" type="text"/>
+<div class="flex items-center justify-center text-outline-variant/20"><span class="material-symbols-outlined" data-icon="add">add</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="tab-pane hidden p-4 text-center text-outline italic" id="tab-auth">No Auth Configured</div>
+<div class="tab-pane hidden p-4 text-center text-outline italic" id="tab-headers">Headers View</div>
+<div class="tab-pane hidden p-4 text-center text-outline italic" id="tab-body">Body Editor</div>
+</div>
+</section>
+<!-- Response Viewer Section -->
+<section class="flex-grow overflow-hidden flex flex-col bg-surface-container-lowest">
+<div class="flex items-center justify-between px-container-padding py-3 border-b border-outline-variant/10">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="font-status-badge text-status-badge bg-secondary-container/20 text-secondary border border-secondary/20 px-2 py-0.5 rounded transition-transform hover:scale-105 cursor-default">200 OK</span>
+<span class="font-label-caps text-[12px] text-outline-variant">42ms</span>
+<span class="font-label-caps text-[12px] text-outline-variant">1.2 KB</span>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-variant rounded transition-all icon-pulse"><span class="material-symbols-outlined text-[18px]" data-icon="content_copy">content_copy</span></button>
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-variant rounded transition-all icon-pulse"><span class="material-symbols-outlined text-[18px]" data-icon="download">download</span></button>
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-variant rounded transition-all icon-pulse"><span class="material-symbols-outlined text-[18px]" data-icon="fullscreen">fullscreen</span></button>
+</div>
+</div>
+<div class="flex-grow overflow-auto custom-scrollbar p-container-padding font-code-block text-code-block selection:bg-primary-container/30 animate-entrance">
+<pre class="leading-relaxed"><span class="syntax-key">"workspace"</span>: {
+  <span class="syntax-key">"id"</span>: <span class="syntax-string">"ws_982310"</span>,
+  <span class="syntax-key">"name"</span>: <span class="syntax-string">"Project Obsidian"</span>,
+  <span class="syntax-key">"owner"</span>: <span class="syntax-string">"dev_alpha_01"</span>,
+  <span class="syntax-key">"status"</span>: <span class="syntax-string">"active"</span>,
+  <span class="syntax-key">"endpoints"</span>: <span class="syntax-number">124</span>,
+  <span class="syntax-key">"last_sync"</span>: <span class="syntax-string">"2023-11-20T14:30:00Z"</span>,
+  <span class="syntax-key">"members"</span>: [
+    { <span class="syntax-key">"id"</span>: <span class="syntax-string">"u_771"</span>, <span class="syntax-key">"role"</span>: <span class="syntax-string">"admin"</span> },
+    { <span class="syntax-key">"id"</span>: <span class="syntax-string">"u_842"</span>, <span class="syntax-key">"role"</span>: <span class="syntax-string">"viewer"</span> }
+  ],
+  <span class="syntax-key">"config"</span>: {
+    <span class="syntax-key">"auto_test"</span>: <span class="syntax-number">true</span>,
+    <span class="syntax-key">"retention"</span>: <span class="syntax-string">"30d"</span>
+  }
+}
+          </pre>
+<!-- Sample image response visualization (if requested/possible) -->
+<div class="mt-8 border-t border-outline-variant/10 pt-6 animate-entrance" style="animation-delay: 0.2s;">
+<p class="font-label-caps text-[10px] text-outline mb-4">RESPONSE PREVIEW</p>
+<div class="w-full max-w-sm aspect-video rounded-xl overflow-hidden border border-outline-variant/30 shadow-2xl relative group transition-transform hover:scale-[1.02]">
+<img alt="Response Preview" class="w-full h-full object-cover" data-alt="A high-tech digital abstract background with flowing vibrant violet and deep blue light trails across a dark obsidian surface. The aesthetic is modern and glassmorphic, featuring soft blurs and sharp geometric refractions that evoke a high-performance software environment. The lighting is moody and cinematic, emphasizing technical precision and professional digital artistry." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvDlOgQ_EqgIWrXBTBMzQ2sFZOs_knVPEBZAaUPq1ZClzxzzd-XouTi063bN4ePbzw64BiUgJc7x4A3Y7VTSnJ5lDGuLFqV7zhj8X1iJSX6348uHfB5yDqkyqlPAJlxgeZdxcKYzxVtsnlyeVBfzjmTd5sJFzVuNQKzsdSRS1mARcr8-JthO4ml4hGaOpSVqi0LaLU_7VyEeJoXcsLC7GWaZHKtoLU-cBSbFMgqMrRESUqFlmSKFJq57ss2jQ2HB2eY_jYMUdnXyo"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end p-4 transition-opacity group-hover:opacity-90">
+<span class="font-label-caps text-[10px] text-on-surface/80 bg-surface-container-high/60 backdrop-blur-md px-2 py-1 rounded">IMAGE/PNG • 240KB</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<footer class="md:hidden fixed bottom-0 left-0 w-full bg-surface-container-low dark:bg-surface-container-low flex justify-around items-center h-16 px-2 pb-safe border-t border-outline-variant/30 z-50">
+<a class="flex flex-col items-center justify-center bg-primary-container/20 text-primary rounded-xl px-3 py-1 font-label-caps text-label-caps transition-transform scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="send" style="font-variation-settings: 'FILL' 1;">send</span>
+      Builder
+    </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-caps text-label-caps transition-transform scale-95 active:scale-90 hover:text-primary" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+      History
+    </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-caps text-label-caps transition-transform scale-95 active:scale-90 hover:text-primary" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+      Collections
+    </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-caps text-label-caps transition-transform scale-95 active:scale-90 hover:text-primary" href="#">
+<span class="material-symbols-outlined" data-icon="language">language</span>
+      Env
+    </a>
+</footer>
+<script>
+    // Tab Switching Logic
+    const tabTriggers = document.querySelectorAll('.tab-trigger');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabTriggers.forEach(trigger => {
+      trigger.addEventListener('click', () => {
+        const target = trigger.getAttribute('data-tab');
+
+        // Update Triggers
+        tabTriggers.forEach(t => {
+          t.classList.remove('border-primary', 'text-primary');
+          t.classList.add('border-transparent', 'text-on-surface-variant');
+        });
+        trigger.classList.add('border-primary', 'text-primary');
+        trigger.classList.remove('border-transparent', 'text-on-surface-variant');
+
+        // Update Panes with transition
+        tabPanes.forEach(pane => {
+          if (pane.id === `tab-${target}`) {
+            pane.classList.remove('hidden');
+            setTimeout(() => pane.classList.add('active'), 10);
+          } else {
+            pane.classList.remove('active');
+            setTimeout(() => pane.classList.add('hidden'), 300);
+          }
+        });
+      });
+    });
+
+    // Method selector smooth interaction
+    const methodSelect = document.querySelector('select');
+    methodSelect.addEventListener('change', (e) => {
+      const colors = {
+        'GET': '#4edea3',
+        'POST': '#d0bcff',
+        'PUT': '#ffb95f',
+        'DELETE': '#ffb4ab',
+        'PATCH': '#ca8100'
+      };
+      methodSelect.style.color = colors[e.target.value] || '#d0bcff';
+      methodSelect.parentElement.style.borderColor = colors[e.target.value] || '#494454';
+    });
+
+    // Handle entrance animations sequence
+    document.addEventListener('DOMContentLoaded', () => {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-entrance');
+          }
+        });
+      }, { threshold: 0.1 });
+
+      document.querySelectorAll('.animate-entrance').forEach(el => observer.observe(el));
+    });
+  </script>
+</body></html>

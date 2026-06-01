@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>API Client - Response View</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=Hanken+Grotesk:wght@100..900&amp;family=JetBrains+Mono:wght@100..800&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+        }
+        .syntax-key { color: #d0bcff; }
+        .syntax-string { color: #4edea3; }
+        .syntax-number { color: #ffb95f; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Animation Styles */
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.02); }
+        }
+        .animate-pulse-badge {
+            animation: pulse-subtle 2.5s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .shimmer-mask {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(208, 188, 255, 0.05), transparent);
+            animation: shimmer 1.5s infinite;
+            pointer-events: none;
+        }
+
+        .tab-content-fade {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-out;
+        }
+        .tab-content-hidden {
+            opacity: 0;
+            transform: translateY(4px);
+            pointer-events: none;
+            position: absolute;
+            width: 100%;
+        }
+        .tab-content-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @keyframes image-zoom-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .preview-image-enter {
+            animation: image-zoom-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .smooth-scroll {
+            scroll-behavior: smooth;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .animate-pulse-badge, .shimmer-mask, .tab-content-fade, .preview-image-enter {
+                animation: none !important;
+                transition: none !important;
+                transform: none !important;
+            }
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#31394d",
+                        "error": "#ffb4ab",
+                        "surface-variant": "#2d3449",
+                        "on-primary": "#3c0091",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#494454",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#283044",
+                        "primary-container": "#a078ff",
+                        "tertiary": "#ffb95f",
+                        "secondary": "#4edea3",
+                        "background": "#0b1326",
+                        "secondary-container": "#00a572",
+                        "inverse-surface": "#dae2fd",
+                        "tertiary-fixed": "#ffddb8",
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "secondary-fixed-dim": "#4edea3",
+                        "surface-container-highest": "#2d3449",
+                        "on-background": "#dae2fd",
+                        "on-tertiary-container": "#3e2400",
+                        "on-surface-variant": "#cbc3d7",
+                        "surface-container": "#171f33",
+                        "on-secondary": "#003824",
+                        "on-primary-fixed": "#23005c",
+                        "tertiary-container": "#ca8100",
+                        "on-primary-container": "#340080",
+                        "surface-container-high": "#222a3d",
+                        "on-tertiary": "#472a00",
+                        "primary-fixed": "#e9ddff",
+                        "primary-fixed-dim": "#d0bcff",
+                        "on-secondary-fixed": "#002113",
+                        "outline": "#958ea0",
+                        "on-secondary-fixed-variant": "#005236",
+                        "surface-container-low": "#131b2e",
+                        "surface-tint": "#d0bcff",
+                        "primary": "#d0bcff",
+                        "inverse-primary": "#6d3bd7",
+                        "surface-dim": "#0b1326",
+                        "secondary-fixed": "#6ffbbe",
+                        "on-primary-fixed-variant": "#5516be",
+                        "surface": "#0b1326",
+                        "on-tertiary-fixed-variant": "#653e00",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed": "#2a1700",
+                        "surface-container-lowest": "#060e20",
+                        "on-surface": "#dae2fd",
+                        "on-secondary-container": "#00311f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-padding": "16px",
+                        "unit": "4px",
+                        "gutter": "12px",
+                        "stack-lg": "24px",
+                        "stack-md": "16px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["JetBrains Mono"],
+                        "code-block": ["JetBrains Mono"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-lg": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "body-sm": ["Hanken Grotesk"],
+                        "status-badge": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "code-block": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "status-badge": ["12px", {"lineHeight": "14px", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-lg min-h-screen flex flex-col hide-scrollbar overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-background border-b border-outline-variant/30 flex justify-between items-center px-container-padding h-14">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high/50 p-2 rounded-xl transition-all">menu</button>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">API Client</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-2 bg-primary text-on-primary px-4 py-1.5 rounded-xl font-label-caps text-label-caps transition-transform active:scale-95" onclick="simulateLoad()">
+<span class="material-symbols-outlined text-[18px]">send</span>
+                SEND
+            </button>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-high/50 p-2 rounded-xl transition-all">settings</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="mt-14 pb-16 flex-1 flex flex-col relative">
+<!-- Request Summary -->
+<div class="px-container-padding py-stack-md bg-surface-container-lowest border-b border-outline-variant/10">
+<div class="flex items-center gap-gutter bg-surface-container-low border border-outline-variant/20 rounded-xl p-2">
+<span class="font-code-block text-secondary px-3 py-1 bg-secondary/10 rounded-lg text-sm font-bold">GET</span>
+<span class="font-code-block text-on-surface-variant text-sm truncate flex-1">https://api.aeroclient.dev/v1/assets/image_2</span>
+<button class="material-symbols-outlined text-on-surface-variant text-[20px] p-1">content_copy</button>
+</div>
+</div>
+<!-- Response Panel -->
+<div class="flex-1 flex flex-col relative" id="response-panel">
+<!-- Loading Shimmer -->
+<div class="shimmer-mask hidden" id="loading-shimmer"></div>
+<!-- Metadata Bar -->
+<div class="px-container-padding py-3 flex items-center justify-between border-b border-outline-variant/10">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 bg-secondary-container/20 text-secondary px-3 py-1 rounded-lg border border-secondary/20 animate-pulse-badge">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-status-badge text-status-badge uppercase tracking-wider">200 OK</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/70 font-label-caps text-[10px]">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">timer</span>
+<span>491 MS</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">database</span>
+<span>15.89 KB</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1.5 font-label-caps text-label-caps text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors border border-primary/20">
+<span class="material-symbols-outlined text-[18px]">bookmark</span>
+                        SAVE
+                    </button>
+</div>
+</div>
+<!-- Tabs Navigation -->
+<div class="flex px-container-padding gap-gutter border-b border-outline-variant/10 overflow-x-auto hide-scrollbar bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+<button class="py-3 px-2 border-b-2 border-primary text-primary font-label-caps text-label-caps transition-all" id="tab-raw" onclick="switchTab('raw')">RAW</button>
+<button class="py-3 px-2 border-b-2 border-transparent text-on-surface-variant font-label-caps text-label-caps transition-all" id="tab-preview" onclick="switchTab('preview')">PREVIEW</button>
+<button class="py-3 px-2 border-b-2 border-transparent text-on-surface-variant font-label-caps text-label-caps transition-all" id="tab-headers" onclick="switchTab('headers')">HEADERS</button>
+</div>
+<!-- Tab Content Container -->
+<div class="flex-1 relative bg-surface-container-lowest overflow-hidden">
+<!-- Raw Content (JSON) -->
+<div class="p-container-padding tab-content-fade tab-content-visible overflow-y-auto h-full smooth-scroll" id="content-raw">
+<div class="bg-surface-container rounded-xl p-4 font-code-block text-code-block border border-outline-variant/10 shadow-inner">
+<pre class="overflow-x-auto"><code class="block">
+<span class="syntax-key">{</span>
+  <span class="syntax-key">"status"</span>: <span class="syntax-number">200</span>,
+  <span class="syntax-key">"data"</span>: <span class="syntax-key">{</span>
+    <span class="syntax-key">"id"</span>: <span class="syntax-string">"img_0842"</span>,
+    <span class="syntax-key">"type"</span>: <span class="syntax-string">"image/jpeg"</span>,
+    <span class="syntax-key">"attributes"</span>: <span class="syntax-key">{</span>
+      <span class="syntax-key">"description"</span>: <span class="syntax-string">"Hot air balloon over palm oasis"</span>,
+      <span class="syntax-key">"location"</span>: <span class="syntax-string">"Luxor, Egypt"</span>,
+      <span class="syntax-key">"resolution"</span>: <span class="syntax-string">"1200x1600"</span>
+    <span class="syntax-key">}</span>,
+    <span class="syntax-key">"url"</span>: <span class="syntax-string">"https://api.aeroclient.dev/assets/hot-air-balloon.jpg"</span>
+  <span class="syntax-key">}</span>
+<span class="syntax-key">}</span></code></pre>
+</div>
+<div class="h-10"></div> <!-- Padding for bottom scroll -->
+</div>
+<!-- Preview Content -->
+<div class="tab-content-fade tab-content-hidden p-container-padding flex flex-col items-center overflow-y-auto h-full" id="content-preview">
+<div class="relative group mt-4">
+<div class="absolute inset-0 bg-primary/20 blur-3xl opacity-0 group-hover:opacity-30 transition-opacity"></div>
+<div class="glass-panel p-2 rounded-2xl relative overflow-hidden shadow-2xl">
+<img class="rounded-xl w-full max-w-sm aspect-[3/4] object-cover" data-alt="A vibrant yellow and orange hot air balloon floating gracefully over a lush green palm tree oasis in Luxor at sunrise. The soft morning light illuminates the landscape with a warm golden glow." id="preview-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASaoVjmh9Rk2zKFqgNSPBtT08G84RymDFzgHx9ExHSCJUTFwjVo3Rq4KLgauJE4yKLiztGS3Honn3LqAWoNdnzz7vQCx0xJNJY89IIU3VBxE2dFLdYYDQdq71XpCbYlJEsxTkz4_t1iUUz6dtbFyAZZ7iXyQNEyA_FggMqKtUfZW1GGqGk2wJ5FD-v3O1fZQRXsW5ToTZFrKUe5y5krEH_k0V42xz-P8nv9N-Fz4hcSCYM7BzzkCVNARvl7roUGpTDtt3Ln0RRJks"/>
+</div>
+</div>
+<div class="mt-stack-md flex gap-4 pb-8">
+<button class="material-symbols-outlined p-3 rounded-full bg-surface-container-high border border-outline-variant/30 text-on-surface hover:bg-primary/20 transition-colors">zoom_in</button>
+<button class="material-symbols-outlined p-3 rounded-full bg-surface-container-high border border-outline-variant/30 text-on-surface hover:bg-primary/20 transition-colors">download</button>
+</div>
+</div>
+<!-- Headers Content -->
+<div class="tab-content-fade tab-content-hidden p-container-padding overflow-y-auto h-full" id="content-headers">
+<div class="flex flex-col gap-2">
+<div class="flex justify-between p-3 border-b border-outline-variant/10">
+<span class="font-label-caps text-label-caps text-on-surface-variant/60 uppercase">Key</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant/60 uppercase">Value</span>
+</div>
+<div class="flex justify-between items-center p-3 bg-surface-container-low rounded-lg border border-outline-variant/5">
+<span class="font-code-block text-primary text-sm">Content-Type</span>
+<span class="font-code-block text-secondary text-sm">application/json</span>
+</div>
+<div class="flex justify-between items-center p-3 bg-surface-container-low rounded-lg border border-outline-variant/5">
+<span class="font-code-block text-primary text-sm">Cache-Control</span>
+<span class="font-code-block text-secondary text-sm">no-cache, max-age=0</span>
+</div>
+<div class="flex justify-between items-center p-3 bg-surface-container-low rounded-lg border border-outline-variant/5">
+<span class="font-code-block text-primary text-sm">Server</span>
+<span class="font-code-block text-secondary text-sm">cloudflare-nitro</span>
+</div>
+<div class="flex justify-between items-center p-3 bg-surface-container-low rounded-lg border border-outline-variant/5">
+<span class="font-code-block text-primary text-sm">X-Request-ID</span>
+<span class="font-code-block text-secondary text-sm">req_abc123xyz789</span>
+</div>
+</div>
+<div class="h-10"></div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-16 px-2 pb-safe bg-surface-container-low border-t border-outline-variant/30 z-50">
+<a class="flex flex-col items-center justify-center text-on-surface-variant transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined">send</span>
+<span class="font-label-caps text-label-caps">Builder</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container/20 text-primary rounded-xl px-3 py-1 transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="font-label-caps text-label-caps">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="font-label-caps text-label-caps">Collections</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined">language</span>
+<span class="font-label-caps text-label-caps">Env</span>
+</a>
+</nav>
+<script>
+        let currentTab = 'raw';
+
+        function switchTab(tabId) {
+            if (tabId === currentTab) return;
+
+            const tabs = ['raw', 'preview', 'headers'];
+            const img = document.getElementById('preview-img');
+
+            tabs.forEach(t => {
+                const content = document.getElementById(`content-${t}`);
+                const tabBtn = document.getElementById(`tab-${t}`);
+                
+                if (t === tabId) {
+                    content.classList.remove('tab-content-hidden');
+                    content.classList.add('tab-content-visible');
+                    tabBtn.classList.add('border-primary', 'text-primary');
+                    tabBtn.classList.remove('border-transparent', 'text-on-surface-variant');
+
+                    // Animation specifically for preview image
+                    if (t === 'preview') {
+                        img.classList.remove('preview-image-enter');
+                        void img.offsetWidth; // Trigger reflow
+                        img.classList.add('preview-image-enter');
+                    }
+                } else {
+                    content.classList.add('tab-content-hidden');
+                    content.classList.remove('tab-content-visible');
+                    tabBtn.classList.remove('border-primary', 'text-primary');
+                    tabBtn.classList.add('border-transparent', 'text-on-surface-variant');
+                }
+            });
+            
+            currentTab = tabId;
+        }
+
+        function simulateLoad() {
+            const shimmer = document.getElementById('loading-shimmer');
+            shimmer.classList.remove('hidden');
+            
+            // Fade out after a simulated network delay
+            setTimeout(() => {
+                shimmer.style.transition = 'opacity 0.5s ease-out';
+                shimmer.style.opacity = '0';
+                setTimeout(() => {
+                    shimmer.classList.add('hidden');
+                    shimmer.style.opacity = '1';
+                    shimmer.style.transition = '';
+                }, 500);
+            }, 800);
+        }
+
+        // Initialize state
+        window.addEventListener('load', () => {
+            // Check for prefers-reduced-motion is handled by CSS media query
+            // Trigger initial loading shimmer for effect
+            simulateLoad();
+        });
+    </script>
+</body></html>

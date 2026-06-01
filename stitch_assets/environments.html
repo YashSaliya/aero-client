@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&amp;family=Hanken+Grotesk:wght@400;600&amp;family=JetBrains+Mono:wght@450;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-bright": "#31394d",
+                    "error": "#ffb4ab",
+                    "surface-variant": "#2d3449",
+                    "on-primary": "#3c0091",
+                    "on-error-container": "#ffdad6",
+                    "outline-variant": "#494454",
+                    "error-container": "#93000a",
+                    "inverse-on-surface": "#283044",
+                    "primary-container": "#a078ff",
+                    "tertiary": "#ffb95f",
+                    "secondary": "#4edea3",
+                    "background": "#0b1326",
+                    "secondary-container": "#00a572",
+                    "inverse-surface": "#dae2fd",
+                    "tertiary-fixed": "#ffddb8",
+                    "tertiary-fixed-dim": "#ffb95f",
+                    "secondary-fixed-dim": "#4edea3",
+                    "surface-container-highest": "#2d3449",
+                    "on-background": "#dae2fd",
+                    "on-tertiary-container": "#3e2400",
+                    "on-surface-variant": "#cbc3d7",
+                    "surface-container": "#171f33",
+                    "on-secondary": "#003824",
+                    "on-primary-fixed": "#23005c",
+                    "tertiary-container": "#ca8100",
+                    "on-primary-container": "#340080",
+                    "surface-container-high": "#222a3d",
+                    "on-tertiary": "#472a00",
+                    "primary-fixed": "#e9ddff",
+                    "primary-fixed-dim": "#d0bcff",
+                    "on-secondary-fixed": "#002113",
+                    "outline": "#958ea0",
+                    "on-secondary-fixed-variant": "#005236",
+                    "surface-container-low": "#131b2e",
+                    "surface-tint": "#d0bcff",
+                    "primary": "#d0bcff",
+                    "inverse-primary": "#6d3bd7",
+                    "surface-dim": "#0b1326",
+                    "secondary-fixed": "#6ffbbe",
+                    "on-primary-fixed-variant": "#5516be",
+                    "surface": "#0b1326",
+                    "on-tertiary-fixed-variant": "#653e00",
+                    "on-error": "#690005",
+                    "on-tertiary-fixed": "#2a1700",
+                    "surface-container-lowest": "#060e20",
+                    "on-surface": "#dae2fd",
+                    "on-secondary-container": "#00311f"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "container-padding": "16px",
+                    "unit": "4px",
+                    "gutter": "12px",
+                    "stack-lg": "24px",
+                    "stack-md": "16px",
+                    "stack-sm": "8px"
+            },
+            "fontFamily": {
+                    "label-caps": ["JetBrains Mono"],
+                    "code-block": ["JetBrains Mono"],
+                    "body-lg": ["Hanken Grotesk"],
+                    "headline-lg": ["Geist"],
+                    "headline-md": ["Geist"],
+                    "body-sm": ["Hanken Grotesk"],
+                    "status-badge": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "code-block": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "status-badge": ["12px", {"lineHeight": "14px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0b1326;
+            color: #dae2fd;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+        }
+        .refined-border {
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .active-glow {
+            box-shadow: 0 0 12px 2px rgba(139, 92, 246, 0.15);
+        }
+        /* Custom scrollbar for technical density */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex flex-col min-h-screen">
+<!-- TopAppBar from JSON -->
+<header class="fixed top-0 w-full z-50 bg-background border-b border-outline-variant/30 flex justify-between items-center px-container-padding h-14 w-full">
+<div class="flex items-center gap-3">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high/50 transition-all duration-200 active:opacity-70 p-2 rounded-full">menu</button>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">API Client</h1>
+</div>
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high/50 transition-all duration-200 active:opacity-70 p-2 rounded-full">settings</button>
+</header>
+<main class="mt-14 mb-16 flex-1 px-container-padding py-6 overflow-y-auto">
+<!-- Environment Selector Section -->
+<section class="mb-stack-lg">
+<div class="flex items-center justify-between mb-stack-sm">
+<h2 class="font-headline-md text-headline-md text-on-background">Environment</h2>
+<span class="font-status-badge text-status-badge text-secondary bg-secondary-container/20 px-2 py-0.5 rounded-full border border-secondary/30">Synced</span>
+</div>
+<div class="flex gap-2 bg-surface-container-low p-1 rounded-xl refined-border">
+<button class="flex-1 py-2 font-label-caps text-label-caps rounded-lg transition-all duration-200 bg-primary-container text-on-primary-container" id="btn-dev" onclick="switchEnv('dev')">Development</button>
+<button class="flex-1 py-2 font-label-caps text-label-caps rounded-lg transition-all duration-200 text-on-surface-variant hover:bg-surface-variant/30" id="btn-stg" onclick="switchEnv('stg')">Staging</button>
+<button class="flex-1 py-2 font-label-caps text-label-caps rounded-lg transition-all duration-200 text-on-surface-variant hover:bg-surface-variant/30" id="btn-prd" onclick="switchEnv('prd')">Production</button>
+</div>
+</section>
+<!-- Variables Grid Section -->
+<section class="mb-stack-lg">
+<div class="flex items-center justify-between mb-gutter">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant uppercase">Global Variables</h3>
+<button class="flex items-center gap-1 text-primary font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[18px]">add</span> Add Row
+                </button>
+</div>
+<div class="space-y-unit">
+<!-- Variable Row 1 -->
+<div class="flex items-center gap-2 bg-surface-container-low p-2 rounded-lg refined-border group">
+<div class="flex-1">
+<input class="w-full bg-transparent border-none focus:ring-0 font-code-block text-code-block text-primary p-0" placeholder="Key" type="text" value="base_url"/>
+</div>
+<div class="w-[1px] h-4 bg-outline-variant/30"></div>
+<div class="flex-[2]">
+<input class="w-full bg-transparent border-none focus:ring-0 font-code-block text-code-block text-on-surface p-0" placeholder="Value" type="text" value="https://dev-api.flux.io/v1"/>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-0 group-hover:opacity-100 transition-opacity">delete</button>
+</div>
+<!-- Variable Row 2 -->
+<div class="flex items-center gap-2 bg-surface-container-low p-2 rounded-lg refined-border group">
+<div class="flex-1">
+<input class="w-full bg-transparent border-none focus:ring-0 font-code-block text-code-block text-primary p-0" placeholder="Key" type="text" value="auth_token"/>
+</div>
+<div class="w-[1px] h-4 bg-outline-variant/30"></div>
+<div class="flex-[2]">
+<input class="w-full bg-transparent border-none focus:ring-0 font-code-block text-code-block text-on-surface p-0" placeholder="Value" type="password" value="••••••••••••••••"/>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-0 group-hover:opacity-100 transition-opacity">visibility</button>
+</div>
+<!-- Variable Row 3 -->
+<div class="flex items-center gap-2 bg-surface-container-low p-2 rounded-lg refined-border group">
+<div class="flex-1">
+<input class="w-full bg-transparent border-none focus:ring-0 font-code-block text-code-block text-primary p-0" placeholder="Key" type="text" value="timeout_ms"/>
+</div>
+<div class="w-[1px] h-4 bg-outline-variant/30"></div>
+<div class="flex-[2]">
+<input class="w-full bg-transparent border-none focus:ring-0 font-code-block text-code-block text-on-surface p-0" placeholder="Value" type="text" value="5000"/>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-0 group-hover:opacity-100 transition-opacity">delete</button>
+</div>
+</div>
+</section>
+<!-- General Settings Cards (Bento style) -->
+<section class="grid grid-cols-2 gap-gutter">
+<h3 class="col-span-2 font-label-caps text-label-caps text-on-surface-variant uppercase mt-2">Request Settings</h3>
+<!-- Timeout Setting -->
+<div class="glass-card p-4 rounded-xl flex flex-col gap-2">
+<span class="material-symbols-outlined text-primary">timer</span>
+<div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Timeout</p>
+<p class="font-headline-md text-headline-md text-on-surface">30<span class="text-body-sm ml-1 text-on-surface-variant">sec</span></p>
+</div>
+</div>
+<!-- Follow Redirects -->
+<div class="glass-card p-4 rounded-xl flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-secondary">alt_route</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
+</label>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface mt-2 leading-tight">Follow Redirects</p>
+</div>
+<!-- SSL Verification -->
+<div class="glass-card p-4 rounded-xl flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-error">verified_user</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface mt-2 leading-tight">SSL Verify</p>
+</div>
+<!-- Max Log Size -->
+<div class="glass-card p-4 rounded-xl flex flex-col gap-2">
+<span class="material-symbols-outlined text-tertiary">database</span>
+<div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Log Cap</p>
+<p class="font-headline-md text-headline-md text-on-surface">50<span class="text-body-sm ml-1 text-on-surface-variant">MB</span></p>
+</div>
+</div>
+</section>
+<!-- Advanced Footer Information -->
+<section class="mt-stack-lg p-container-padding bg-surface-container-highest/20 rounded-xl border border-dashed border-outline-variant/40">
+<div class="flex items-center gap-3">
+<div class="bg-primary/10 p-2 rounded-lg">
+<span class="material-symbols-outlined text-primary">info</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                    Environment variables are automatically injected into requests using the <code class="text-primary font-code-block">{{variable_name}}</code> syntax.
+                </p>
+</div>
+</section>
+</main>
+<!-- BottomNavBar from JSON -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-16 px-2 pb-safe bg-surface-container-low border-t border-outline-variant/30 z-50">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">send</span>
+<span class="font-label-caps text-label-caps">Builder</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-caps text-label-caps">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="font-label-caps text-label-caps">Collections</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container/20 text-primary rounded-xl px-3 py-1 scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">language</span>
+<span class="font-label-caps text-label-caps">Env</span>
+</a>
+</nav>
+<!-- Visual Background Enhancements -->
+<div class="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden">
+<div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[100px] rounded-full"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/5 blur-[100px] rounded-full"></div>
+</div>
+<script>
+        function switchEnv(env) {
+            const buttons = ['btn-dev', 'btn-stg', 'btn-prd'];
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (id === 'btn-' + env) {
+                    btn.classList.add('bg-primary-container', 'text-on-primary-container');
+                    btn.classList.remove('text-on-surface-variant', 'hover:bg-surface-variant/30');
+                } else {
+                    btn.classList.remove('bg-primary-container', 'text-on-primary-container');
+                    btn.classList.add('text-on-surface-variant', 'hover:bg-surface-variant/30');
+                }
+            });
+
+            // Feedback Toast Haptic Simulation
+            console.log(`Environment switched to: ${env}`);
+        }
+
+        // Simple visual feedback for toggles
+        document.querySelectorAll('input[type="checkbox"]').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                const parent = this.closest('.glass-card');
+                if (this.checked) {
+                    parent.classList.add('active-glow');
+                } else {
+                    parent.classList.remove('active-glow');
+                }
+            });
+        });
+    </script>
+</body></html>

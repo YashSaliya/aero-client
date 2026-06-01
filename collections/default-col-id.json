@@ -1,64 +1,53 @@
 {
   "id": "default-col-id",
   "name": "Aero Sample Collection",
-  "requests": [
+  "items": [
     {
-      "id": "req-1",
-      "name": "Get JSONPlaceholder Users",
-      "method": "GET",
-      "url": "https://jsonplaceholder.typicode.com/users",
-      "headers": [
-        {
-          "key": "Accept",
-          "value": "application/json",
-          "active": true
-        }
-      ],
-      "body": "",
-      "graphql_query": null,
-      "graphql_variables": null
+      "type": "Request",
+      "content": {
+        "id": "req-1",
+        "name": "Get JSONPlaceholder Users",
+        "method": "GET",
+        "url": "https://jsonplaceholder.typicode.com/users",
+        "headers": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "active": true
+          }
+        ],
+        "body": "",
+        "graphql_query": null,
+        "graphql_variables": null
+      }
     },
     {
-      "id": "req-2",
-      "name": "Post Create User",
-      "method": "POST",
-      "url": "https://jsonplaceholder.typicode.com/posts",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/json",
-          "active": true
-        }
-      ],
-      "body": "{\"title\": \"foo\", \"body\": \"bar\", \"userId\": 1}",
-      "graphql_query": null,
-      "graphql_variables": null
-    },
-    {
-      "id": "42428643-fe3c-43d4-b6c2-17105105b3bd",
-      "name": "New Request",
-      "method": "GET",
-      "url": "https://jsonplaceholder.typicode.com/posts",
-      "headers": [],
-      "body": "",
-      "graphql_query": null,
-      "graphql_variables": null
-    },
-    {
-      "id": "290ec1a8-4bd6-4747-896a-77ba9dfd626f",
-      "name": "New",
-      "method": "GET",
-      "url": "https://jsonplaceholder.typicode.com/users",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/json",
-          "active": true
-        }
-      ],
-      "body": "",
-      "graphql_query": "",
-      "graphql_variables": "{\"variables\": {}}"
+      "type": "Folder",
+      "content": {
+        "id": "subfolder-1",
+        "name": "Advanced Examples",
+        "items": [
+          {
+            "type": "Request",
+            "content": {
+              "id": "req-2",
+              "name": "Post Create User",
+              "method": "POST",
+              "url": "https://jsonplaceholder.typicode.com/posts",
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "active": true
+                }
+              ],
+              "body": "{\"title\": \"foo\", \"body\": \"bar\", \"userId\": 1}",
+              "graphql_query": null,
+              "graphql_variables": null
+            }
+          }
+        ]
+      }
     }
   ]
 }
