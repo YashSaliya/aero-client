@@ -620,14 +620,14 @@ impl eframe::App for AeroApp {
                                         });
                                         ui.add_space(4.0);
                                         
-                                        // Formatted code viewer
-                                        let mut body_str = res.body.clone();
+                                        // Formatted code viewer using a rich selectable label that scrolls on both axes
                                         ui.add(
-                                            egui::TextEdit::multiline(&mut body_str)
-                                                .font(egui::TextStyle::Monospace)
-                                                .desired_width(ui.available_width() - 8.0)
-                                                .desired_rows(12)
-                                                .lock_focus(true)
+                                            egui::Label::new(
+                                                egui::RichText::new(&res.body)
+                                                    .font(egui::FontId::monospace(13.0))
+                                            )
+                                            .selectable(true)
+                                            .wrap(false)
                                         );
                                     }
                                 });
