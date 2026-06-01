@@ -177,7 +177,7 @@ impl eframe::App for AeroApp {
                 // Sidebar controls
                 ui.vertical_centered_justified(|ui| {
                     ui.add_space(4.0);
-                    if ui.button("✚ New Request").clicked() {
+                    if theme::draw_custom_button(ui, "✚ New Request", theme::COLOR_PRIMARY, egui::Color32::WHITE).clicked() {
                         self.active_request = RequestEditorState::new();
                         self.last_response = None;
                     }
@@ -214,17 +214,11 @@ impl eframe::App for AeroApp {
                         })
                         .body(|ui| {
                             for req in &col.requests {
-                                let method_color = theme::get_method_color(&req.method);
                                 ui.horizontal(|ui| {
                                     ui.add_space(8.0);
                                     
-                                    // Highlight method type pill
-                                    ui.label(
-                                        egui::RichText::new(format!("{:<4}", req.method))
-                                            .color(method_color)
-                                            .strong()
-                                            .size(11.0)
-                                    );
+                                    // Highlight method type pill using rich translucent custom helper
+                                    theme::draw_method_pill(ui, &req.method);
 
                                     // Display name with click action
                                     let btn_label = if req.name.is_empty() { "Untitled Request" } else { &req.name };
@@ -239,7 +233,19 @@ impl eframe::App for AeroApp {
                             // Quick add inside collection
                             ui.horizontal(|ui| {
                                 ui.add_space(8.0);
-                                if ui.small_button("+ Add Request").clicked() {
+                                
+                                let add_btn = ui.add(
+                                    egui::Button::new(
+                                        egui::RichText::new("+ Add Request")
+                                            .color(theme::COLOR_PRIMARY)
+                                            .strong()
+                                            .size(11.0)
+                                    )
+                                    .fill(egui::Color32::TRANSPARENT)
+                                    .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
+                                );
+
+                                if add_btn.clicked() {
                                     let new_req = SavedRequest {
                                         id: Uuid::new_v4().to_string(),
                                         name: "New Request".to_string(),
@@ -279,7 +285,16 @@ impl eframe::App for AeroApp {
             ui.horizontal(|ui| {
                 ui.text_edit_singleline(&mut self.active_request.name);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("💾 Save").clicked() {
+                    let save_btn = ui.add(
+                        egui::Button::new(
+                            egui::RichText::new("💾 Save Request")
+                                .color(theme::COLOR_TEXT_ACTIVE)
+                                .strong()
+                        )
+                        .fill(theme::COLOR_BG_SIDEBAR)
+                        .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
+                    );
+                    if save_btn.clicked() {
                         if !self.collections.is_empty() {
                             let col = &mut self.collections[self.selected_col_idx];
                             if let Some(pos) = col.requests.iter().position(|r| r.id == self.active_request.id) {
@@ -325,11 +340,11 @@ impl eframe::App for AeroApp {
                 if self.is_loading {
                     ui.add(egui::Spinner::new());
                 } else {
-                    let send_btn = ui.add(
-                        egui::Button::new(
-                            egui::RichText::new("Send ➤").color(egui::Color32::WHITE).strong()
-                        )
-                        .fill(theme::COLOR_PRIMARY)
+                    let send_btn = theme::draw_custom_button(
+                        ui,
+                        "Send ➤",
+                        theme::COLOR_PRIMARY,
+                        egui::Color32::WHITE
                     );
                     if send_btn.clicked() || (url_field.lost_focus() && ctx.input(|i| i.key_pressed(egui::Key::Enter))) {
                         let mut final_headers = self.active_request.headers.clone();
@@ -379,10 +394,39 @@ impl eframe::App for AeroApp {
             
             // Tab Selector for Request Builder
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.active_request.active_tab, RequestTab::Headers, "Headers");
-                ui.selectable_value(&mut self.active_request.active_tab, RequestTab::Body, "Body");
-                ui.selectable_value(&mut self.active_request.active_tab, RequestTab::GraphQL, "GraphQL");
-                ui.selectable_value(&mut self.active_request.active_tab, RequestTab::Params, "Params");
+                ui.spacing_mut().item_spacing.x = 6.0;
+                for (tab, name) in &[
+                    (RequestTab::Headers, "Headers"),
+                    (RequestTab::Body, "Body"),
+                    (RequestTab::GraphQL, "GraphQL"),
+                    (RequestTab::Params, "Params"),
+                ] {
+                    let is_selected = self.active_request.active_tab == *tab;
+                    let text_color = if is_selected {
+                        theme::COLOR_PRIMARY
+                    } else {
+                        theme::COLOR_TEXT_MUTED
+                    };
+                    
+                    let tab_btn = ui.add(
+                        egui::Button::new(
+                            egui::RichText::new(*name)
+                                .color(text_color)
+                                .strong()
+                                .size(13.0)
+                        )
+                        .fill(if is_selected { theme::COLOR_BG_INPUT } else { egui::Color32::TRANSPARENT })
+                        .stroke(egui::Stroke::new(1.0, if is_selected { theme::COLOR_BORDER } else { egui::Color32::TRANSPARENT }))
+                    );
+                    if tab_btn.clicked() {
+                        self.active_request.active_tab = match tab {
+                            RequestTab::Headers => RequestTab::Headers,
+                            RequestTab::Body => RequestTab::Body,
+                            RequestTab::GraphQL => RequestTab::GraphQL,
+                            RequestTab::Params => RequestTab::Params,
+                        };
+                    }
+                }
             });
             ui.add_space(4.0);
 
@@ -602,21 +646,70 @@ impl eframe::App for AeroApp {
                     } else {
                         // Empty State Welcome dashboard
                         ui.vertical_centered(|ui| {
-                            ui.add_space(40.0);
-                            ui.label(
-                                egui::RichText::new("✦ AeroClient")
-                                    .color(theme::COLOR_PRIMARY)
-                                    .size(24.0)
-                                    .strong()
-                            );
-                            ui.add_space(8.0);
-                            ui.label(
-                                egui::RichText::new("Select a saved request from the sidebar or type a URL and hit 'Send' to make your first call.")
-                                    .color(theme::COLOR_TEXT_MUTED)
-                                    .size(13.0)
-                            );
-                            ui.add_space(16.0);
-                            ui.label("⚡ Git-friendly collections saved in `./collections` directory.");
+                            ui.add_space(20.0);
+                            
+                            // Center card container
+                            egui::Frame::none()
+                                .fill(theme::COLOR_BG_SIDEBAR)
+                                .stroke(egui::Stroke::new(1.0, theme::COLOR_BORDER))
+                                .rounding(egui::Rounding::same(8.0))
+                                .inner_margin(24.0)
+                                .show(ui, |ui| {
+                                    ui.set_width(450.0);
+                                    ui.vertical_centered(|ui| {
+                                        ui.label(
+                                            egui::RichText::new("✦ AeroClient")
+                                                .color(theme::COLOR_PRIMARY)
+                                                .size(24.0)
+                                                .strong()
+                                        );
+                                        ui.add_space(4.0);
+                                        ui.label(
+                                            egui::RichText::new("The high-performance, lightweight API companion")
+                                                .color(theme::COLOR_TEXT_MUTED)
+                                                .size(12.0)
+                                        );
+                                        ui.add_space(16.0);
+                                        ui.separator();
+                                        ui.add_space(16.0);
+                                    });
+
+                                    ui.vertical(|ui| {
+                                        ui.spacing_mut().item_spacing.y = 8.0;
+                                        
+                                        ui.horizontal(|ui| {
+                                            ui.label(egui::RichText::new("🚀 REST Engine").color(theme::COLOR_GET).strong());
+                                            ui.label("- Full HTTP methods support with live status tags.");
+                                        });
+                                        
+                                        ui.horizontal(|ui| {
+                                            ui.label(egui::RichText::new("🌌 GraphQL IDE").color(theme::COLOR_PATCH).strong());
+                                            ui.label("- Separate query and variable boxes auto-packed.");
+                                        });
+
+                                        ui.horizontal(|ui| {
+                                            ui.label(egui::RichText::new("🖼️ Image Viewer").color(theme::COLOR_PUT).strong());
+                                            ui.label("- Autodetect image streams and draw on screen.");
+                                        });
+
+                                        ui.horizontal(|ui| {
+                                            ui.label(egui::RichText::new("⚡ Git-Friendly").color(theme::COLOR_POST).strong());
+                                            ui.label("- Local JSON collections saved inside ./collections.");
+                                        });
+                                    });
+
+                                    ui.add_space(16.0);
+                                    ui.separator();
+                                    ui.add_space(12.0);
+                                    ui.vertical_centered(|ui| {
+                                        ui.label(
+                                            egui::RichText::new("Select a saved request from the sidebar or click '✚ New Request' to start!")
+                                                .color(theme::COLOR_TEXT_ACTIVE)
+                                                .strong()
+                                                .size(11.0)
+                                        );
+                                    });
+                                });
                         });
                     }
                 });

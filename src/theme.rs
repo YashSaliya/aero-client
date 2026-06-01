@@ -30,6 +30,43 @@ pub fn get_method_color(method: &str) -> egui::Color32 {
     }
 }
 
+pub fn draw_method_pill(ui: &mut egui::Ui, method: &str) {
+    let color = get_method_color(method);
+    let bg_color = color.linear_multiply(0.12);
+    
+    egui::Frame::none()
+        .fill(bg_color)
+        .stroke(egui::Stroke::new(1.0, color.linear_multiply(0.6)))
+        .rounding(egui::Rounding::same(4.0))
+        .inner_margin(egui::Margin::symmetric(6.0, 2.0))
+        .show(ui, |ui| {
+            ui.label(
+                egui::RichText::new(method.to_uppercase())
+                    .color(color)
+                    .strong()
+                    .size(10.0)
+            );
+        });
+}
+
+pub fn draw_custom_button(
+    ui: &mut egui::Ui,
+    label: &str,
+    fill_color: egui::Color32,
+    text_color: egui::Color32,
+) -> egui::Response {
+    let button = egui::Button::new(
+        egui::RichText::new(label)
+            .color(text_color)
+            .strong()
+    )
+    .fill(fill_color)
+    .stroke(egui::Stroke::new(1.0, fill_color.linear_multiply(0.8)))
+    .min_size(egui::vec2(80.0, 28.0));
+    
+    ui.add(button)
+}
+
 pub fn apply_theme(ctx: &egui::Context) {
     let mut style = (*ctx.style()).clone();
 
