@@ -48,44 +48,6 @@
           }
         ]
       }
-    },
-    {
-      "type": "Request",
-      "content": {
-        "id": "3cd79d1d-3694-410d-880b-3b69604de324",
-        "name": "Untitled Request",
-        "method": "GET",
-        "url": "https://jsonplaceholder.typicode.com/users",
-        "headers": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "active": true
-          }
-        ],
-        "body": "",
-        "graphql_query": "",
-        "graphql_variables": "{\"variables\": {}}"
-      }
-    },
-    {
-      "type": "Request",
-      "content": {
-        "id": "d8fb49e7-b405-4ce2-9ba8-342718a828d5",
-        "name": "Untitled Request",
-        "method": "GET",
-        "url": "https://jsonplaceholder.typicode.com/users",
-        "headers": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "active": true
-          }
-        ],
-        "body": "",
-        "graphql_query": "",
-        "graphql_variables": "{\"variables\": {}}"
-      }
     }
   ]
 }

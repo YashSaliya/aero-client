@@ -1,0 +1,18 @@
+[
+  {
+    "id": "b3d1d124-d577-4673-909b-29f6fc81a921",
+    "name": "Untitled Request",
+    "method": "GET",
+    "url": "api.criccenter.ai/allLeague",
+    "headers": [
+      {
+        "key": "Content-Type",
+        "value": "application/json",
+        "active": true
+      }
+    ],
+    "body": "",
+    "graphql_query": "",
+    "graphql_variables": "{\"variables\": {}}"
+  }
+]

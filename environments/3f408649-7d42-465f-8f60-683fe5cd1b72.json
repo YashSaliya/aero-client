@@ -1,0 +1,8 @@
+{
+  "id": "3f408649-7d42-465f-8f60-683fe5cd1b72",
+  "name": "New Environment",
+  "variables": [],
+  "timeout_ms": 30000,
+  "follow_redirects": true,
+  "ssl_verification": true
+}

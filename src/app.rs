@@ -206,6 +206,17 @@ fn draw_recursive_item(
 
             ui.horizontal(|ui| {
                 ui.add_space(12.0 + 16.0 * depth as f32);
+
+                // Draw action buttons first on the far right to claim the space
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.add(egui::Button::new(
+                        egui::RichText::new("x").color(theme::COLOR_ERROR.linear_multiply(0.85)).size(11.0)
+                    ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
+                        indices.push(999);
+                        *col_to_save = true;
+                    }
+                });
+
                 theme::draw_method_badge(ui, &req.method);
 
                 let btn_label = if req.name.is_empty() { "Untitled Request" } else { &req.name };
@@ -215,9 +226,8 @@ fn draw_recursive_item(
                     egui::RichText::new(btn_label).color(theme::COLOR_ON_SURFACE_VARIANT).size(13.0)
                 };
 
-                let label_width = ui.available_width() - 35.0;
-                let response = ui.add_sized(
-                    egui::vec2(label_width, 18.0),
+                // Label on the left takes the remaining space and truncates dynamically
+                let response = ui.add(
                     egui::Label::new(text).sense(egui::Sense::click()).truncate(true)
                 );
 
@@ -225,15 +235,6 @@ fn draw_recursive_item(
                     *req_to_load = Some(req.clone());
                     *selected_col_idx = col_idx;
                 }
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(egui::Button::new(
-                        egui::RichText::new("🗑").color(theme::COLOR_ERROR.linear_multiply(0.85)).size(11.0)
-                    ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
-                        indices.push(999);
-                        *col_to_save = true;
-                    }
-                });
             });
 
             // Draw active highlight bar
@@ -253,26 +254,16 @@ fn draw_recursive_item(
             let folder_icon = if is_open { "📂" } else { "📁" };
 
             state.show_header(ui, |ui| {
-                    let label_width = ui.available_width() - 85.0;
-                    ui.add_sized(
-                        egui::vec2(label_width, 18.0),
-                        egui::Label::new(
-                            egui::RichText::new(format!("{} {}", folder_icon, folder.name))
-                                .color(theme::COLOR_TERTIARY)
-                                .strong()
-                                .size(13.0)
-                        ).truncate(true)
-                    );
-
+                    // 1. Draw action buttons first on the far right to claim space
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.add(egui::Button::new(
-                            egui::RichText::new("🗑").color(theme::COLOR_ERROR.linear_multiply(0.85)).size(11.0)
+                            egui::RichText::new("x").color(theme::COLOR_ERROR.linear_multiply(0.85)).size(11.0)
                         ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                             indices.push(999);
                             *col_to_save = true;
                         }
                         if ui.add(egui::Button::new(
-                            egui::RichText::new("✚").color(theme::COLOR_PRIMARY).size(10.0)
+                            egui::RichText::new("+").color(theme::COLOR_PRIMARY).size(10.0)
                         ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                             let new_req = SavedRequest {
                                 id: Uuid::new_v4().to_string(),
@@ -299,6 +290,16 @@ fn draw_recursive_item(
                             *col_to_save = true;
                         }
                     });
+
+                    // 2. Label on the left takes the remaining space and truncates dynamically
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(format!("{} {}", folder_icon, folder.name))
+                                .color(theme::COLOR_TERTIARY)
+                                .strong()
+                                .size(13.0)
+                        ).truncate(true)
+                    );
                 })
                 .body(|ui| {
                     let mut item_indices_to_delete = Vec::new();
@@ -643,27 +644,17 @@ impl eframe::App for AeroApp {
                     let col_icon = if is_open { "📂" } else { "📁" };
 
                     state.show_header(ui, |ui| {
-                            let label_width = ui.available_width() - 85.0;
-                            ui.add_sized(
-                                egui::vec2(label_width, 18.0),
-                                egui::Label::new(
-                                    egui::RichText::new(format!("{} {}", col_icon, col.name))
-                                        .color(theme::COLOR_TERTIARY)
-                                        .strong()
-                                        .size(13.0)
-                                ).truncate(true)
-                            );
-
+                            // 1. Draw action buttons first on the far right to claim space
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 let del_btn = ui.add(egui::Button::new(
-                                    egui::RichText::new("🗑").color(theme::COLOR_ERROR.linear_multiply(0.85)).size(11.0)
+                                    egui::RichText::new("x").color(theme::COLOR_ERROR.linear_multiply(0.85)).size(11.0)
                                 ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0)));
                                 if del_btn.clicked() {
                                     col_to_delete_idx = Some(col_idx);
                                 }
                                 
                                 if ui.add(egui::Button::new(
-                                    egui::RichText::new("✚").color(theme::COLOR_PRIMARY).size(10.0)
+                                    egui::RichText::new("+").color(theme::COLOR_PRIMARY).size(10.0)
                                 ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                                     let new_req = SavedRequest {
                                         id: Uuid::new_v4().to_string(),
@@ -694,6 +685,16 @@ impl eframe::App for AeroApp {
                                     col_to_save_idx = Some(col_idx);
                                 }
                             });
+
+                            // 2. Label on the left takes the remaining space and truncates dynamically
+                            ui.add(
+                                egui::Label::new(
+                                    egui::RichText::new(format!("{} {}", col_icon, col.name))
+                                        .color(theme::COLOR_TERTIARY)
+                                        .strong()
+                                        .size(13.0)
+                                ).truncate(true)
+                            );
                         })
                             .body(|ui| {
                                 let mut item_indices_to_delete = Vec::new();
@@ -812,7 +813,7 @@ impl eframe::App for AeroApp {
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 ui.add_space(8.0);
                                 if ui.add(egui::Button::new(
-                                    egui::RichText::new("✕").color(theme::COLOR_OUTLINE).size(11.0)
+                                    egui::RichText::new("x").color(theme::COLOR_OUTLINE).size(11.0)
                                 ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                                     env_to_delete_idx = Some(env_idx);
                                 }
@@ -1054,7 +1055,7 @@ impl AeroApp {
                     );
 
                     if ui.add(egui::Button::new(
-                        egui::RichText::new("✕").color(theme::COLOR_OUTLINE).size(11.0)
+                        egui::RichText::new("x").color(theme::COLOR_OUTLINE).size(11.0)
                     ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                         to_remove = Some(var_idx);
                     }
@@ -1273,7 +1274,7 @@ impl AeroApp {
                     } else {
                         let send_btn = ui.add(
                             egui::Button::new(
-                                egui::RichText::new("⮞ SEND")
+                                egui::RichText::new("▶ SEND")
                                     .color(theme::COLOR_ON_PRIMARY)
                                     .strong()
                                     .size(11.0)
@@ -1393,7 +1394,7 @@ impl AeroApp {
                         params_changed = true;
                     }
                     if ui.add(egui::Button::new(
-                        egui::RichText::new("✕").color(theme::COLOR_OUTLINE).size(11.0)
+                        egui::RichText::new("x").color(theme::COLOR_OUTLINE).size(11.0)
                     ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                         to_remove = Some(idx);
                         params_changed = true;
@@ -1465,7 +1466,7 @@ impl AeroApp {
                             .desired_width(ui.available_width() - 40.0)
                     );
                     if ui.add(egui::Button::new(
-                        egui::RichText::new("✕").color(theme::COLOR_OUTLINE).size(11.0)
+                        egui::RichText::new("x").color(theme::COLOR_OUTLINE).size(11.0)
                     ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                         to_remove = Some(idx);
                     }
@@ -1825,7 +1826,7 @@ impl AeroApp {
                     );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if theme::draw_outlined_button(ui, "🗑 Clear History").clicked() {
+                        if theme::draw_outlined_button(ui, "Clear History").clicked() {
                             self.history.clear();
                             let _ = self.storage.save_history(&self.history);
                         }
@@ -1860,11 +1861,11 @@ impl AeroApp {
                                 );
 
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if theme::draw_primary_button(ui, "⮞ Load").clicked() {
+                                    if theme::draw_primary_button(ui, "Load").clicked() {
                                         req_to_load = Some(req.clone());
                                     }
                                     ui.add_space(8.0);
-                                    if theme::draw_outlined_button(ui, "✕ Remove").clicked() {
+                                    if theme::draw_outlined_button(ui, "x Remove").clicked() {
                                         req_to_remove = Some(idx);
                                     }
                                 });
@@ -1916,7 +1917,7 @@ impl AeroApp {
                     );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if theme::draw_primary_button(ui, "✚ Create Collection").clicked() {
+                        if theme::draw_primary_button(ui, "+ Create Collection").clicked() {
                             let new_col = ApiCollection {
                                 id: Uuid::new_v4().to_string(),
                                 name: "New Collection".to_string(),
@@ -1955,11 +1956,11 @@ impl AeroApp {
                                 );
 
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if theme::draw_outlined_button(ui, "🗑 Delete").clicked() {
+                                    if theme::draw_outlined_button(ui, "Delete").clicked() {
                                         col_to_delete_idx = Some(col_idx);
                                     }
                                     ui.add_space(8.0);
-                                    if theme::draw_outlined_button(ui, "✚ Add Request").clicked() {
+                                    if theme::draw_outlined_button(ui, "+ Add Request").clicked() {
                                         let new_req = SavedRequest {
                                             id: Uuid::new_v4().to_string(),
                                             name: "New Request".to_string(),
