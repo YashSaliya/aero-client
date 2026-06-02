@@ -8,7 +8,16 @@ pub struct Environment {
     pub id: String,
     pub name: String,
     pub variables: Vec<KeyValue>,
+    #[serde(default = "default_timeout")]
+    pub timeout_ms: u32,
+    #[serde(default = "default_true")]
+    pub follow_redirects: bool,
+    #[serde(default = "default_true")]
+    pub ssl_verification: bool,
 }
+
+fn default_timeout() -> u32 { 30000 }
+fn default_true() -> bool { true }
 
 pub struct EnvironmentStorage {
     dir_path: PathBuf,
@@ -55,6 +64,9 @@ impl EnvironmentStorage {
                         active: true,
                     },
                 ],
+                timeout_ms: 30000,
+                follow_redirects: true,
+                ssl_verification: true,
             };
             let _ = self.save_environment(&default_env);
             environments.push(default_env);

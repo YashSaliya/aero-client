@@ -27,6 +27,8 @@ enum ResponseTab {
 #[derive(PartialEq, Clone)]
 enum ActivePanel {
     Request,
+    History,
+    Collections,
     Environment(usize),
 }
 
@@ -103,6 +105,7 @@ pub struct AeroApp {
 
     collections: Vec<ApiCollection>,
     environments: Vec<Environment>,
+    history: Vec<SavedRequest>,
 
     active_request: RequestEditorState,
     active_panel: ActivePanel,
@@ -135,6 +138,7 @@ impl AeroApp {
 
         let env_storage = EnvironmentStorage::new();
         let environments = env_storage.load_environments();
+        let history = storage.load_history();
 
         let active_request = RequestEditorState::new();
         let last_synced_url = active_request.url.clone();
@@ -145,6 +149,7 @@ impl AeroApp {
             env_storage,
             collections,
             environments,
+            history,
             active_request,
             active_panel: ActivePanel::Request,
             active_env_idx: Some(0),
@@ -210,8 +215,10 @@ fn draw_recursive_item(
                     egui::RichText::new(btn_label).color(theme::COLOR_ON_SURFACE_VARIANT).size(13.0)
                 };
 
-                let response = ui.add(
-                    egui::Label::new(text).sense(egui::Sense::click())
+                let label_width = ui.available_width() - 35.0;
+                let response = ui.add_sized(
+                    egui::vec2(label_width, 18.0),
+                    egui::Label::new(text).sense(egui::Sense::click()).truncate(true)
                 );
 
                 if response.clicked() {
@@ -221,7 +228,7 @@ fn draw_recursive_item(
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.add(egui::Button::new(
-                        egui::RichText::new("✕").color(theme::COLOR_OUTLINE).size(11.0)
+                        egui::RichText::new("🗑").color(theme::COLOR_ERROR.linear_multiply(0.85)).size(11.0)
                     ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                         indices.push(999);
                         *col_to_save = true;
@@ -241,24 +248,31 @@ fn draw_recursive_item(
         }
         CollectionItem::Folder(folder) => {
             let id = egui::Id::new(&folder.id);
-            egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
-                .show_header(ui, |ui| {
-                    ui.label(
-                        egui::RichText::new(format!("📁 {}", folder.name))
-                            .color(theme::COLOR_TERTIARY)
-                            .strong()
-                            .size(13.0)
+            let state = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true);
+            let is_open = state.is_open();
+            let folder_icon = if is_open { "📂" } else { "📁" };
+
+            state.show_header(ui, |ui| {
+                    let label_width = ui.available_width() - 85.0;
+                    ui.add_sized(
+                        egui::vec2(label_width, 18.0),
+                        egui::Label::new(
+                            egui::RichText::new(format!("{} {}", folder_icon, folder.name))
+                                .color(theme::COLOR_TERTIARY)
+                                .strong()
+                                .size(13.0)
+                        ).truncate(true)
                     );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.add(egui::Button::new(
-                            egui::RichText::new("✕").color(theme::COLOR_OUTLINE).size(11.0)
+                            egui::RichText::new("🗑").color(theme::COLOR_ERROR.linear_multiply(0.85)).size(11.0)
                         ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                             indices.push(999);
                             *col_to_save = true;
                         }
                         if ui.add(egui::Button::new(
-                            egui::RichText::new("+").color(theme::COLOR_PRIMARY).size(13.0)
+                            egui::RichText::new("✚").color(theme::COLOR_PRIMARY).size(10.0)
                         ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                             let new_req = SavedRequest {
                                 id: Uuid::new_v4().to_string(),
@@ -274,7 +288,7 @@ fn draw_recursive_item(
                             *col_to_save = true;
                         }
                         if ui.add(egui::Button::new(
-                            egui::RichText::new("📁").size(12.0)
+                            egui::RichText::new("📁").color(theme::COLOR_TERTIARY).size(10.0)
                         ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
                             let new_folder = FolderNode {
                                 id: Uuid::new_v4().to_string(),
@@ -358,6 +372,8 @@ fn rebuild_url_with_params(url_str: &str, params: &[KeyValue]) -> String {
 
 // ─── Underline Tab Helper ───────────────────────────────────────────────────
 fn draw_underline_tab(ui: &mut egui::Ui, label: &str, is_selected: bool) -> bool {
+    let how_selected = ui.ctx().animate_bool(ui.make_persistent_id(label), is_selected);
+
     let text_color = if is_selected {
         theme::COLOR_PRIMARY
     } else {
@@ -378,18 +394,22 @@ fn draw_underline_tab(ui: &mut egui::Ui, label: &str, is_selected: bool) -> bool
         .min_size(egui::vec2(0.0, 28.0))
     );
 
-    // Draw underline indicator
-    if is_selected {
+    // Draw underline indicator with center-expansion animation
+    if how_selected > 0.0 {
         let rect = response.rect;
+        let width = rect.width() * how_selected;
+        let left = rect.left() + (rect.width() - width) * 0.5;
         let underline_rect = egui::Rect::from_min_size(
-            egui::pos2(rect.left(), rect.bottom() - 2.0),
-            egui::vec2(rect.width(), 2.0),
+            egui::pos2(left, rect.bottom() - 2.0),
+            egui::vec2(width, 2.0),
         );
-        ui.painter().rect_filled(underline_rect, 1.0, theme::COLOR_PRIMARY);
+        let color = theme::COLOR_PRIMARY.linear_multiply(how_selected);
+        ui.painter().rect_filled(underline_rect, 1.0, color);
     }
 
     response.clicked()
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN UPDATE LOOP
@@ -447,6 +467,8 @@ impl eframe::App for AeroApp {
                     let tabs = ["BUILDER", "HISTORY", "COLLECTIONS", "ENV"];
                     let active_tab_idx = match self.active_panel {
                         ActivePanel::Request => 0,
+                        ActivePanel::History => 1,
+                        ActivePanel::Collections => 2,
                         ActivePanel::Environment(_) => 3,
                     };
                     for (i, tab) in tabs.iter().enumerate() {
@@ -477,6 +499,8 @@ impl eframe::App for AeroApp {
                         if btn.clicked() {
                             match i {
                                 0 => self.active_panel = ActivePanel::Request,
+                                1 => self.active_panel = ActivePanel::History,
+                                2 => self.active_panel = ActivePanel::Collections,
                                 3 => {
                                     if !self.environments.is_empty() {
                                         self.active_panel = ActivePanel::Environment(0);
@@ -611,56 +635,66 @@ impl eframe::App for AeroApp {
                     let mut col_to_delete_idx = None;
 
                     for (col_idx, col) in self.collections.iter_mut().enumerate() {
-                        let id = egui::Id::new(&col.id);
-                        let mut folder_save_flag = false;
+                    let id = egui::Id::new(&col.id);
+                    let mut folder_save_flag = false;
 
-                        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
-                            .show_header(ui, |ui| {
-                                ui.label(
-                                    egui::RichText::new(format!("📁 {}", col.name))
+                    let state = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true);
+                    let is_open = state.is_open();
+                    let col_icon = if is_open { "📂" } else { "📁" };
+
+                    state.show_header(ui, |ui| {
+                            let label_width = ui.available_width() - 85.0;
+                            ui.add_sized(
+                                egui::vec2(label_width, 18.0),
+                                egui::Label::new(
+                                    egui::RichText::new(format!("{} {}", col_icon, col.name))
                                         .color(theme::COLOR_TERTIARY)
                                         .strong()
                                         .size(13.0)
-                                );
+                                ).truncate(true)
+                            );
 
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if ui.add(egui::Button::new(
-                                        egui::RichText::new("✕").color(theme::COLOR_OUTLINE).size(11.0)
-                                    ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
-                                        col_to_delete_idx = Some(col_idx);
-                                    }
-                                    if ui.add(egui::Button::new(
-                                        egui::RichText::new("+").color(theme::COLOR_PRIMARY).size(13.0)
-                                    ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
-                                        let new_req = SavedRequest {
-                                            id: Uuid::new_v4().to_string(),
-                                            name: "New Request".to_string(),
-                                            method: "GET".to_string(),
-                                            url: "https://jsonplaceholder.typicode.com/posts".to_string(),
-                                            headers: vec![],
-                                            body: "".to_string(),
-                                            graphql_query: None,
-                                            graphql_variables: None,
-                                        };
-                                        col.items.push(CollectionItem::Request(new_req.clone()));
-                                        req_to_load = Some(new_req);
-                                        self.selected_col_idx = col_idx;
-                                        col_to_save_idx = Some(col_idx);
-                                        self.active_panel = ActivePanel::Request;
-                                    }
-                                    if ui.add(egui::Button::new(
-                                        egui::RichText::new("📁").size(12.0)
-                                    ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
-                                        let new_folder = FolderNode {
-                                            id: Uuid::new_v4().to_string(),
-                                            name: "New Folder".to_string(),
-                                            items: vec![],
-                                        };
-                                        col.items.push(CollectionItem::Folder(new_folder));
-                                        col_to_save_idx = Some(col_idx);
-                                    }
-                                });
-                            })
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                let del_btn = ui.add(egui::Button::new(
+                                    egui::RichText::new("🗑").color(theme::COLOR_ERROR.linear_multiply(0.85)).size(11.0)
+                                ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0)));
+                                if del_btn.clicked() {
+                                    col_to_delete_idx = Some(col_idx);
+                                }
+                                
+                                if ui.add(egui::Button::new(
+                                    egui::RichText::new("✚").color(theme::COLOR_PRIMARY).size(10.0)
+                                ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
+                                    let new_req = SavedRequest {
+                                        id: Uuid::new_v4().to_string(),
+                                        name: "New Request".to_string(),
+                                        method: "GET".to_string(),
+                                        url: "https://jsonplaceholder.typicode.com/posts".to_string(),
+                                        headers: vec![],
+                                        body: "".to_string(),
+                                        graphql_query: None,
+                                        graphql_variables: None,
+                                    };
+                                    col.items.push(CollectionItem::Request(new_req.clone()));
+                                    req_to_load = Some(new_req);
+                                    self.selected_col_idx = col_idx;
+                                    col_to_save_idx = Some(col_idx);
+                                    self.active_panel = ActivePanel::Request;
+                                }
+                                
+                                if ui.add(egui::Button::new(
+                                    egui::RichText::new("📁").color(theme::COLOR_TERTIARY).size(10.0)
+                                ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE).min_size(egui::vec2(20.0, 20.0))).clicked() {
+                                    let new_folder = FolderNode {
+                                        id: Uuid::new_v4().to_string(),
+                                        name: "New Folder".to_string(),
+                                        items: vec![],
+                                    };
+                                    col.items.push(CollectionItem::Folder(new_folder));
+                                    col_to_save_idx = Some(col_idx);
+                                }
+                            });
+                        })
                             .body(|ui| {
                                 let mut item_indices_to_delete = Vec::new();
                                 for (item_idx, item) in col.items.iter_mut().enumerate() {
@@ -732,6 +766,9 @@ impl eframe::App for AeroApp {
                                 id: Uuid::new_v4().to_string(),
                                 name: "New Environment".to_string(),
                                 variables: vec![],
+                                timeout_ms: 30000,
+                                follow_redirects: true,
+                                ssl_verification: true,
                             };
                             let _ = self.env_storage.save_environment(&new_env);
                             self.environments.push(new_env);
@@ -801,14 +838,42 @@ impl eframe::App for AeroApp {
                     .inner_margin(egui::Margin::same(0.0))
             )
             .show(ctx, |ui| {
-                match self.active_panel.clone() {
-                    ActivePanel::Environment(env_idx) => {
-                        self.render_environment_panel(ui, env_idx);
+                let target_val = match self.active_panel {
+                    ActivePanel::Request => 0.0,
+                    ActivePanel::History => 1.0,
+                    ActivePanel::Collections => 2.0,
+                    ActivePanel::Environment(_) => 3.0,
+                };
+                let anim_id = ui.make_persistent_id("panel_transition_val");
+                let current_val = ui.ctx().animate_value_with_time(anim_id, target_val, 0.25);
+
+                let alpha = (1.0 - (current_val - target_val).abs()).clamp(0.0, 1.0);
+
+                ui.scope(|ui| {
+                    if alpha < 0.99 {
+                        // Apply transparency to elements inside this scope during transition
+                        let visuals = ui.visuals_mut();
+                        visuals.widgets.noninteractive.fg_stroke.color = visuals.widgets.noninteractive.fg_stroke.color.linear_multiply(alpha);
+                        visuals.widgets.inactive.fg_stroke.color = visuals.widgets.inactive.fg_stroke.color.linear_multiply(alpha);
+                        visuals.widgets.hovered.fg_stroke.color = visuals.widgets.hovered.fg_stroke.color.linear_multiply(alpha);
+                        visuals.widgets.active.fg_stroke.color = visuals.widgets.active.fg_stroke.color.linear_multiply(alpha);
                     }
-                    ActivePanel::Request => {
-                        self.render_request_panel(ui, ctx);
+
+                    match self.active_panel.clone() {
+                        ActivePanel::Environment(env_idx) => {
+                            self.render_environment_panel(ui, env_idx);
+                        }
+                        ActivePanel::Request => {
+                            self.render_request_panel(ui, ctx);
+                        }
+                        ActivePanel::History => {
+                            self.render_history_panel(ui);
+                        }
+                        ActivePanel::Collections => {
+                            self.render_collections_panel(ui);
+                        }
                     }
-                }
+                });
             });
     }
 }
@@ -819,6 +884,7 @@ impl eframe::App for AeroApp {
 impl AeroApp {
     fn render_environment_panel(&mut self, ui: &mut egui::Ui, env_idx: usize) {
         let panel_width = ui.available_width();
+        let mut env_to_delete = false;
 
         egui::Frame::none()
             .fill(theme::COLOR_BACKGROUND)
@@ -844,22 +910,21 @@ impl AeroApp {
                                 .size(11.0)
                                 .family(egui::FontFamily::Monospace)
                         );
-
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if theme::draw_primary_button(ui, "💾 Save Changes").clicked() {
-                                let _ = self.env_storage.save_environment(env);
-                            }
-                        });
                     });
                     ui.add_space(4.0);
 
                     // Environment Name (editable heading)
                     ui.horizontal(|ui| {
-                        ui.heading(
-                            egui::RichText::new(&format!("{} Variables", env.name))
-                                .color(theme::COLOR_ON_SURFACE)
-                                .size(22.0)
-                                .strong()
+                        ui.add(
+                            egui::TextEdit::singleline(&mut env.name)
+                                .font(egui::FontId::new(20.0, egui::FontFamily::Proportional))
+                                .text_color(theme::COLOR_ON_SURFACE)
+                                .hint_text("Environment Name")
+                        );
+                        ui.label(
+                            egui::RichText::new("Variables")
+                                .color(theme::COLOR_ON_SURFACE_VARIANT)
+                                .size(20.0)
                         );
                     });
                     ui.add_space(16.0);
@@ -875,13 +940,13 @@ impl AeroApp {
 
                             // Right column: Settings
                             cols[1].group(|ui| {
-                                Self::render_env_settings_card(ui);
+                                Self::render_env_settings_card(ui, env);
                             });
                         });
                     } else {
                         Self::render_env_variables_card(ui, env, &mut self.new_env_var_key, &mut self.new_env_var_val);
                         ui.add_space(16.0);
-                        Self::render_env_settings_card(ui);
+                        Self::render_env_settings_card(ui, env);
                     }
 
                     ui.add_space(16.0);
@@ -913,13 +978,25 @@ impl AeroApp {
                                         .min_size(egui::vec2(0.0, 32.0))
                                     );
                                     if del_btn.clicked() {
-                                        // Handled by delete on sidebar
+                                        env_to_delete = true;
                                     }
                                 });
                             });
                         });
+
+                    // Auto-save any environment state edits to disk instantly
+                    let _ = self.env_storage.save_environment(env);
                 }
             });
+
+        if env_to_delete {
+            if let Some(env) = self.environments.get(env_idx) {
+                let _ = self.env_storage.delete_environment(&env.id);
+                self.environments.remove(env_idx);
+                self.active_panel = ActivePanel::Request;
+                self.active_env_idx = None;
+            }
+        }
     }
 
     fn render_env_variables_card(ui: &mut egui::Ui, env: &mut Environment, new_key: &mut String, new_val: &mut String) {
@@ -1017,7 +1094,7 @@ impl AeroApp {
         });
     }
 
-    fn render_env_settings_card(ui: &mut egui::Ui) {
+    fn render_env_settings_card(ui: &mut egui::Ui, env: &mut Environment) {
         // Execution settings card
         theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("⚡ Execution").color(theme::COLOR_ON_SURFACE).strong().size(15.0));
@@ -1027,19 +1104,23 @@ impl AeroApp {
                 ui.label(egui::RichText::new("REQUEST TIMEOUT (MS)").color(theme::COLOR_ON_SURFACE_VARIANT).size(11.0).family(egui::FontFamily::Monospace));
             });
             ui.add_space(4.0);
-            let mut timeout_text = "30000".to_string();
-            ui.add(
+            let mut timeout_text = env.timeout_ms.to_string();
+            if ui.add(
                 egui::TextEdit::singleline(&mut timeout_text)
                     .font(egui::FontId::monospace(14.0))
                     .text_color(theme::COLOR_ON_SURFACE)
                     .desired_width(ui.available_width())
-            );
+            ).changed() {
+                if let Ok(val) = timeout_text.parse::<u32>() {
+                    env.timeout_ms = val;
+                }
+            }
 
             ui.add_space(8.0);
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("Follow Redirects").color(theme::COLOR_ON_SURFACE_VARIANT).size(13.0));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new("✓ ON").color(theme::COLOR_SECONDARY).size(11.0).family(egui::FontFamily::Monospace));
+                    ui.checkbox(&mut env.follow_redirects, "");
                 });
             });
         });
@@ -1054,14 +1135,7 @@ impl AeroApp {
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("SSL Verification").color(theme::COLOR_ON_SURFACE_VARIANT).size(13.0));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new("✓ ON").color(theme::COLOR_SECONDARY).size(11.0).family(egui::FontFamily::Monospace));
-                });
-            });
-
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Strict Certificates").color(theme::COLOR_ON_SURFACE_VARIANT).size(13.0));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new("✓ ON").color(theme::COLOR_SECONDARY).size(11.0).family(egui::FontFamily::Monospace));
+                    ui.checkbox(&mut env.ssl_verification, "");
                 });
             });
         });
@@ -1137,6 +1211,10 @@ impl AeroApp {
 
                 // ─── Unified URL Bar (Method + URL + Send) ───────────
                 ui.horizontal(|ui| {
+                    let send_btn_width = 88.0;
+                    let spacing = 8.0;
+                    let url_bar_width = ui.available_width() - send_btn_width - spacing;
+
                     // URL bar container
                     egui::Frame::none()
                         .fill(theme::COLOR_SURFACE_CONTAINER_LOW)
@@ -1144,6 +1222,7 @@ impl AeroApp {
                         .rounding(egui::Rounding::same(10.0))
                         .inner_margin(egui::Margin::symmetric(0.0, 0.0))
                         .show(ui, |ui| {
+                            ui.set_width(url_bar_width);
                             ui.set_height(36.0);
                             ui.horizontal_centered(|ui| {
                                 // Method dropdown
@@ -1496,13 +1575,32 @@ impl AeroApp {
             });
         }
 
+        // Get execution settings from active environment
+        let (timeout_ms, follow_redirects, ssl_verification) = match active_env {
+            Some(ref env) => (env.timeout_ms, env.follow_redirects, env.ssl_verification),
+            None => (30000, true, true),
+        };
+
         let http_req = HttpRequest {
             id: self.active_request.id.clone(),
             method: final_method,
             url: substituted_url,
             headers: substituted_headers,
             body: substituted_body,
+            timeout_ms,
+            follow_redirects,
+            ssl_verification,
         };
+
+        // Save original request to history
+        let saved_req = self.active_request.to_saved();
+        self.history.retain(|r| r.id != saved_req.id);
+        self.history.insert(0, saved_req);
+        if self.history.len() > 50 {
+            self.history.truncate(50);
+        }
+        let _ = self.storage.save_history(&self.history);
+
         self.active_rx = Some(self.client.send(http_req));
         self.is_loading = true;
     }
@@ -1707,4 +1805,259 @@ impl AeroApp {
                 }
             });
     }
+
+    fn render_history_panel(&mut self, ui: &mut egui::Ui) {
+        egui::Frame::none()
+            .fill(theme::COLOR_BACKGROUND)
+            .inner_margin(egui::Margin::same(24.0))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading(
+                        egui::RichText::new("History Log")
+                            .color(theme::COLOR_ON_SURFACE)
+                            .size(22.0)
+                            .strong()
+                    );
+                    ui.label(
+                        egui::RichText::new(format!("• {} requests", self.history.len()))
+                            .color(theme::COLOR_ON_SURFACE_VARIANT)
+                            .size(13.0)
+                    );
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if theme::draw_outlined_button(ui, "🗑 Clear History").clicked() {
+                            self.history.clear();
+                            let _ = self.storage.save_history(&self.history);
+                        }
+                    });
+                });
+
+                ui.add_space(16.0);
+
+                if self.history.is_empty() {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(40.0);
+                        ui.label(egui::RichText::new("No requests in history yet.").color(theme::COLOR_ON_SURFACE_VARIANT).size(14.0));
+                        ui.label(egui::RichText::new("Send a request in the Builder to see it logged here.").color(theme::COLOR_OUTLINE).size(11.0));
+                    });
+                    return;
+                }
+
+                egui::ScrollArea::vertical().id_source("history_panel_scroll").show(ui, |ui| {
+                    let mut req_to_load = None;
+                    let mut req_to_remove = None;
+
+                    for (idx, req) in self.history.iter().enumerate() {
+                        theme::card_frame().show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                theme::draw_method_badge(ui, &req.method);
+                                ui.add_space(8.0);
+                                ui.label(
+                                    egui::RichText::new(&req.url)
+                                        .color(theme::COLOR_ON_SURFACE)
+                                        .size(13.0)
+                                        .family(egui::FontFamily::Monospace)
+                                );
+
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    if theme::draw_primary_button(ui, "⮞ Load").clicked() {
+                                        req_to_load = Some(req.clone());
+                                    }
+                                    ui.add_space(8.0);
+                                    if theme::draw_outlined_button(ui, "✕ Remove").clicked() {
+                                        req_to_remove = Some(idx);
+                                    }
+                                });
+                            });
+                            
+                            if !req.name.is_empty() && req.name != "Untitled Request" {
+                                ui.add_space(4.0);
+                                ui.label(
+                                    egui::RichText::new(format!("Name: {}", req.name))
+                                        .color(theme::COLOR_ON_SURFACE_VARIANT)
+                                        .size(11.0)
+                                );
+                            }
+                        });
+                        ui.add_space(8.0);
+                    }
+
+                    if let Some(req) = req_to_load {
+                        self.active_request = RequestEditorState::from_saved(&req);
+                        self.last_response = None;
+                        self.active_panel = ActivePanel::Request;
+                        self.last_synced_url = self.active_request.url.clone();
+                    }
+
+                    if let Some(idx) = req_to_remove {
+                        self.history.remove(idx);
+                        let _ = self.storage.save_history(&self.history);
+                    }
+                });
+            });
+    }
+
+    fn render_collections_panel(&mut self, ui: &mut egui::Ui) {
+        egui::Frame::none()
+            .fill(theme::COLOR_BACKGROUND)
+            .inner_margin(egui::Margin::same(24.0))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading(
+                        egui::RichText::new("Collections")
+                            .color(theme::COLOR_ON_SURFACE)
+                            .size(22.0)
+                            .strong()
+                    );
+                    ui.label(
+                        egui::RichText::new(format!("• {} collections", self.collections.len()))
+                            .color(theme::COLOR_ON_SURFACE_VARIANT)
+                            .size(13.0)
+                    );
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if theme::draw_primary_button(ui, "✚ Create Collection").clicked() {
+                            let new_col = ApiCollection {
+                                id: Uuid::new_v4().to_string(),
+                                name: "New Collection".to_string(),
+                                items: vec![],
+                            };
+                            let _ = self.storage.save_collection(&new_col);
+                            self.collections.push(new_col);
+                        }
+                    });
+                });
+
+                ui.add_space(16.0);
+
+                if self.collections.is_empty() {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(40.0);
+                        ui.label(egui::RichText::new("No collections saved yet.").color(theme::COLOR_ON_SURFACE_VARIANT).size(14.0));
+                        ui.label(egui::RichText::new("Create a collection to organize your API requests.").color(theme::COLOR_OUTLINE).size(11.0));
+                    });
+                    return;
+                }
+
+                egui::ScrollArea::vertical().id_source("collections_panel_scroll").show(ui, |ui| {
+                    let mut col_to_delete_idx = None;
+                    let mut col_to_save_idx = None;
+                    let mut req_to_load = None;
+
+                    for (col_idx, col) in self.collections.iter_mut().enumerate() {
+                        theme::card_frame().show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    egui::RichText::new(format!("📁 {}", col.name))
+                                        .color(theme::COLOR_TERTIARY)
+                                        .strong()
+                                        .size(15.0)
+                                );
+
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    if theme::draw_outlined_button(ui, "🗑 Delete").clicked() {
+                                        col_to_delete_idx = Some(col_idx);
+                                    }
+                                    ui.add_space(8.0);
+                                    if theme::draw_outlined_button(ui, "✚ Add Request").clicked() {
+                                        let new_req = SavedRequest {
+                                            id: Uuid::new_v4().to_string(),
+                                            name: "New Request".to_string(),
+                                            method: "GET".to_string(),
+                                            url: "https://jsonplaceholder.typicode.com/posts".to_string(),
+                                            headers: vec![],
+                                            body: "".to_string(),
+                                            graphql_query: None,
+                                            graphql_variables: None,
+                                        };
+                                        col.items.push(CollectionItem::Request(new_req.clone()));
+                                        req_to_load = Some(new_req);
+                                        self.selected_col_idx = col_idx;
+                                        col_to_save_idx = Some(col_idx);
+                                        self.active_panel = ActivePanel::Request;
+                                    }
+                                    ui.add_space(8.0);
+                                    // Rename collection inline input
+                                    if ui.add(
+                                        egui::TextEdit::singleline(&mut col.name)
+                                            .font(egui::FontId::proportional(12.0))
+                                            .desired_width(120.0)
+                                    ).changed() {
+                                        col_to_save_idx = Some(col_idx);
+                                    }
+                                });
+                            });
+
+                            ui.add_space(10.0);
+                            ui.separator();
+                            ui.add_space(8.0);
+
+                            // List items inside collection
+                            if col.items.is_empty() {
+                                ui.label(egui::RichText::new("Empty collection").color(theme::COLOR_ON_SURFACE_VARIANT).size(11.0).italics());
+                            } else {
+                                for item in &col.items {
+                                    match item {
+                                        CollectionItem::Request(req) => {
+                                            ui.horizontal(|ui| {
+                                                theme::draw_method_badge(ui, &req.method);
+                                                ui.add_space(4.0);
+                                                if ui.add(egui::Link::new(
+                                                    egui::RichText::new(&req.name).size(12.0).color(theme::COLOR_PRIMARY)
+                                                )).clicked() {
+                                                    req_to_load = Some(req.clone());
+                                                    self.selected_col_idx = col_idx;
+                                                }
+                                                ui.label(
+                                                    egui::RichText::new(&req.url)
+                                                        .color(theme::COLOR_ON_SURFACE_VARIANT)
+                                                        .size(11.0)
+                                                        .family(egui::FontFamily::Monospace)
+                                                );
+                                            });
+                                        }
+                                        CollectionItem::Folder(folder) => {
+                                            ui.label(egui::RichText::new(format!("📁 Folder: {}", folder.name)).color(theme::COLOR_TERTIARY).size(12.0).strong());
+                                            for sub_item in &folder.items {
+                                                if let CollectionItem::Request(sub_req) = sub_item {
+                                                    ui.horizontal(|ui| {
+                                                        ui.add_space(12.0);
+                                                        theme::draw_method_badge(ui, &sub_req.method);
+                                                        ui.add_space(4.0);
+                                                        if ui.add(egui::Link::new(
+                                                            egui::RichText::new(&sub_req.name).size(11.0).color(theme::COLOR_PRIMARY)
+                                                        )).clicked() {
+                                                            req_to_load = Some(sub_req.clone());
+                                                            self.selected_col_idx = col_idx;
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        ui.add_space(12.0);
+                    }
+
+                    if let Some(req) = req_to_load {
+                        self.active_request = RequestEditorState::from_saved(&req);
+                        self.last_response = None;
+                        self.active_panel = ActivePanel::Request;
+                        self.last_synced_url = self.active_request.url.clone();
+                    }
+
+                    if let Some(col_idx) = col_to_save_idx {
+                        let _ = self.storage.save_collection(&self.collections[col_idx]);
+                    }
+
+                    if let Some(idx) = col_to_delete_idx {
+                        let _ = self.storage.delete_collection(&self.collections[idx].id);
+                        self.collections.remove(idx);
+                    }
+                });
+            });
+    }
 }
+

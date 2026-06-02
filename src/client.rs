@@ -18,6 +18,9 @@ pub struct HttpRequest {
     pub url: String,
     pub headers: Vec<KeyValue>,
     pub body: String,
+    pub timeout_ms: u32,
+    pub follow_redirects: bool,
+    pub ssl_verification: bool,
 }
 
 #[allow(dead_code)]
@@ -54,18 +57,12 @@ impl AsyncHttpClient {
                 .unwrap();
 
             rt.block_on(async move {
-                let client = reqwest::Client::builder()
-                    .timeout(Duration::from_secs(30))
-                    .build()
-                    .unwrap();
-
                 while let Ok((req, progress_tx)) = rx.recv() {
-                    let client_clone = client.clone();
                     tokio::spawn(async move {
                         let _ = progress_tx.send(ClientMessage::RequestStarted);
                         let start = Instant::now();
 
-                        let result = execute_request(client_clone, req, start).await;
+                        let result = execute_request(req, start).await;
                         let _ = progress_tx.send(ClientMessage::RequestCompleted(result));
                     });
                 }
@@ -83,10 +80,20 @@ impl AsyncHttpClient {
 }
 
 async fn execute_request(
-    client: reqwest::Client,
     req: HttpRequest,
     start: Instant,
 ) -> Result<HttpResponse, String> {
+    // 1. Build Client dynamically with settings
+    let mut client_builder = reqwest::Client::builder()
+        .timeout(Duration::from_millis(req.timeout_ms as u64))
+        .danger_accept_invalid_certs(!req.ssl_verification);
+
+    if !req.follow_redirects {
+        client_builder = client_builder.redirect(reqwest::redirect::Policy::none());
+    }
+
+    let client = client_builder.build().map_err(|e| e.to_string())?;
+
     // 1. Build Method
     let method = match req.method.to_uppercase().as_str() {
         "GET" => reqwest::Method::GET,

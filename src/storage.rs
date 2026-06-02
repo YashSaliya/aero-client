@@ -133,4 +133,24 @@ impl CollectionStorage {
         }
         Ok(())
     }
+
+    pub fn load_history(&self) -> Vec<SavedRequest> {
+        let path = self.dir_path.join("history.json");
+        if path.exists() {
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(hist) = serde_json::from_str::<Vec<SavedRequest>>(&content) {
+                    return hist;
+                }
+            }
+        }
+        vec![]
+    }
+
+    pub fn save_history(&self, history: &[SavedRequest]) -> Result<(), String> {
+        let path = self.dir_path.join("history.json");
+        let content = serde_json::to_string_pretty(history).map_err(|e| e.to_string())?;
+        fs::write(path, content).map_err(|e| e.to_string())?;
+        Ok(())
+    }
 }
+
